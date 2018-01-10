@@ -14,6 +14,8 @@ var timeAgo = new timeago();
 var jazzicon = require('jazzicon');
 var vsprintf = require("sprintf-js").vsprintf
 
+var USE_COMMIT_REVEAL = true;
+
 //console.log('jazzicon', jazzicon);
 
 var submitted_question_id_timestamp = {};
@@ -146,6 +148,20 @@ import imagesLoaded from 'imagesloaded';
 import interact from 'interactjs';
 import Ps from 'perfect-scrollbar';
 //import {TweenLite, Power3} from 'gsap';
+
+function nonceFromSeed(paramstr) {
+
+    var seed = window.localStorage.getItem('commitment-seed');
+    if (seed == null) {
+        var crypto = require('crypto');
+        seed = crypto.randomBytes(32).toString('hex');
+        console.log('made seed', seed);
+        window.localStorage.setItem('commitment-seed', seed);
+    }
+
+    return web3.sha3(paramstr + seed);
+
+}
 
 function rand(min, max) {
     return min + Math.floor(Math.random() * (max - min + 1));
@@ -2831,8 +2847,21 @@ $(document).on('click', '.post-answer-button', function(e) {
 
         //console.log('submitAnswer',question_id, stringToBytes32(new_answer, question_json['type']), current_question[Qi_bond], {from:account, value:bond});
 
-        // Converting to BigNumber here - ideally we should probably doing this when we parse the form
-        return rc.submitAnswer.sendTransaction(question_id, stringToBytes32(new_answer, question_json), current_question[Qi_bond], {from:account, gas:200000, value:bond});
+        if (USE_COMMIT_REVEAL) {
+            var answer_plaintext = stringToBytes32(new_answer, question_json);
+            var nonce = nonceFromSeed(web3.sha3(question_id + answer_plaintext + bond));
+            var answer_hash = web3.sha3(nonce, answer_plaintext);
+            console.log('made nonce', nonce);
+            console.log('made answer_hash', answer_hash);
+
+            return rc.submitAnswerCommitment.sendTransaction(question_id, answer_hash, current_question[Qi_bond], account, {from:account, gas:200000, value:bond});
+
+        } else {
+
+            // Converting to BigNumber here - ideally we should probably doing this when we parse the form
+            return rc.submitAnswer.sendTransaction(question_id, stringToBytes32(new_answer, question_json), current_question[Qi_bond], {from:account, gas:200000, value:bond});
+        }
+
     }).then(function(txid){
         clearForm(parent_div, question_json);
         var fake_history = {
@@ -2849,7 +2878,7 @@ $(document).on('click', '.post-answer-button', function(e) {
             'blockNumber': block_before_send,
             'txid': txid
         };
-
+    
         var question_data = filledQuestionDetail(question_id, 'answers_unconfirmed', block_before_send, fake_history);
         //console.log('after answer made question_data', question_data);
 
@@ -2861,8 +2890,8 @@ $(document).on('click', '.post-answer-button', function(e) {
                 updateQuestionWindowIfOpen(question);
             });
         });
-
     });
+
     /*
     .catch(function(e){
         console.log(e);
