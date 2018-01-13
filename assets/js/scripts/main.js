@@ -1324,7 +1324,7 @@ function _ensureAnswersFetched(question_id, freshness, start_block) {
         if (isDataFreshEnough(question_id, 'answers', freshness)) {
             resolve(question_detail_list[question_id]);
         } else {
-            //console.log('fetching answers from start_block', start_block);
+            console.log('fetching answers from start_block', start_block);
             var answer_logs = rc.LogNewAnswer({question_id:question_id}, {fromBlock: start_block, toBlock:'latest'});
             answer_logs.get(function(error, answer_arr) {
                 if (error) {
@@ -1332,6 +1332,7 @@ function _ensureAnswersFetched(question_id, freshness, start_block) {
                     reject(error);
                 } else {
                     var question = filledQuestionDetail(question_id, 'answers', called_block, answer_arr);
+                    console.log('populated question with filledQuestionDetail', question);
                     resolve(question);
                 }
             });
@@ -1772,10 +1773,13 @@ function openQuestionWindow(question_id) {
 
     // To respond quickly, start by fetching with even fairly old data and no logs
     ensureQuestionDetailFetched(question_id, 1, 1, 1, -1).then(function(question) {
+        console.log('featching without logs first');
         displayQuestionDetail(question);
         // Get the window open first with whatever data we have
         // Then repopulate with the most recent of everything anything has changed
+        console.log('refecthing with logs');
         ensureQuestionDetailFetched(question_id, 1, 1, current_block_number, current_block_number).then(function(question) {
+            console.log('updating open question window', question);
             updateQuestionWindowIfOpen(question);
         });
     });
@@ -1882,7 +1886,7 @@ function populateQuestionWindow(rcqa, question_detail, is_refresh) {
     var question_json = question_detail[Qi_question_json];
     var question_type = question_json['type'];
 
-    //console.log('current list last item in history, which is ', question_detail['history'])
+    console.log('question detail is', question_detail)
     var idx = question_detail['history'].length - 1;
 
     let date = new Date();
@@ -3253,6 +3257,10 @@ function pageInit(account) {
                 switch (evt) {
 
                     case ('LogNewAnswer'):
+                        if (result.args.is_commitment) {
+                            console.log('got commitment', result);
+                        //    break;
+                        }
                         //console.log('got LogNewAnswer, block ', result.blockNumber);
                         ensureQuestionDetailFetched(question_id, 1, 1, result.blockNumber, result.blockNumber).then(function(question) {
                             updateQuestionWindowIfOpen(question);
