@@ -184,6 +184,22 @@ const monthList = [
     'Dec'
 ];
 
+function commitmentID(question_id, answer_hash, bond) {
+    console.log('commitmentID using answer_hash', answer_hash);
+    return "0x" + ethereumjs_abi.soliditySHA3(
+        ["uint256", "uint256", "uint256"],
+        [ new BN(question_id.replace(/^0x/, ''), 16), new BN(answer_hash.replace(/^0x/, ''), 16), new BN(bond.toString(16), 16)]
+    ).toString('hex');
+}
+
+function answerHash(answer_plaintext, nonce) {
+    console.log('hashing', answer_plaintext, nonce);
+    return "0x" + ethereumjs_abi.soliditySHA3(
+        ["uint256", "uint256"],
+        [ new BN(answer_plaintext.replace(/^0x/, ''), 16), new BN(nonce.replace(/^0x/, ''), 16)]
+    ).toString('hex');
+}
+
 function contentHash(template_id, opening_ts, content) {
     return "0x" + ethereumjs_abi.soliditySHA3(
         ["uint256", "uint32", "string"],
@@ -711,6 +727,11 @@ function isArbitrationPending(question) {
 }
 
 function isAnswered(question) {
+    var history_hash = new BigNumber(question[Qi_history_hash]);
+    return (history_hash.gt(0));
+}
+
+function isFinalizable(question) {
     var finalization_ts = question[Qi_finalization_ts].toNumber();
     return ((finalization_ts > 1) || (finalization_ts == 1 && new BigNumber(question[Qi_history_hash]).gt(0)));
 }
@@ -1038,7 +1059,7 @@ function mergePossibleClaimable(posses, pending) {
 function scheduleFinalizationDisplayUpdate(question) {
     //console.log('in scheduleFinalizationDisplayUpdate', question);
     // TODO: The layering of this is a bit weird, maybe it should be somewhere else?
-    if (!isFinalized(question) && isAnswered(question) && !isArbitrationPending(question)) {
+    if (!isFinalized(question) && isFinalizable(question) && !isArbitrationPending(question)) {
         var question_id = question[Qi_question_id];
         var is_done = false;
         if (question_event_times[question_id]) {
@@ -1314,6 +1335,35 @@ function _ensureQuestionTemplateFetched(question_id, template_id, qtext, freshne
                     reject(err);
                 });
             }
+        }
+    });
+}
+
+function isAnythingUnrevealed(question) {
+    console.log('isAnythingUnrevealed pretending everything is revealed');
+    return false;
+}
+
+function _ensureAnswerRevealsFetched(question_id, freshness, start_block) {
+    var called_block = current_block_number;
+    return new Promise((resolve, reject)=>{
+        if (isDataFreshEnough(question_id, 'answer_reveals', freshness)) {
+            resolve(question_detail_list[question_id]);
+        } else if (!isAnythingUnrevealed())  {
+            resolve(question_detail_list[question_id]);
+        } else {
+            console.log('fetching answers from start_block', start_block);
+            var answer_logs = rc.LogNewAnswer({question_id:question_id}, {fromBlock: start_block, toBlock:'latest'});
+            answer_logs.get(function(error, answer_arr) {
+                if (error) {
+                    console.log('error in get');
+                    reject(error);
+                } else {
+                    var question = filledQuestionDetail(question_id, 'answers', called_block, answer_arr);
+                    console.log('populated question with filledQuestionDetail', question);
+                    resolve(question);
+                }
+            });
         }
     });
 }
@@ -2324,6 +2374,35 @@ function renderNotifications(qdata, entry) {
             insertNotificationItem(evt, notification_id, ntext, entry.blockNumber, entry.args.question_id, true);
             break;
 
+        case 'LogAnswerReveal':
+            var is_positive = true;
+            var notification_id = web3.sha3('LogAnswerReveal' + entry.args.question_id + entry.args.user + entry.args.bond.toString());
+            if (entry.args.user == account) {
+                ntext = 'You revealed an answer to a question - "' + question_json['title'] + '"';
+                insertNotificationItem(evt, notification_id, ntext, entry.blockNumber, entry.args.question_id, true);
+            } else {
+                var answered_question = rc.LogNewQuestion({question_id: question_id}, {
+                    fromBlock: START_BLOCK,
+                    toBlock: 'latest'
+                });
+                answered_question.get(function (error, result2) {
+                    if (error === null && typeof result2 !== 'undefined') {
+                        if (result2[0].args.user == account) {
+                            ntext = 'Someone revealed their answer to your question';
+                        } else if (qdata['history'][qdata['history'].length - 2].args.user == account) {
+                            is_positive = false;
+                            ntext = 'Your answer was overwritten';
+                        }
+                        if (typeof ntext !== 'undefined') {
+                            ntext += ' - "' + question_json['title'] + '"';
+                            insertNotificationItem(evt, notification_id, ntext, entry.blockNumber, entry.args.question_id, is_positive);
+                        }
+                    }
+                });
+            }
+            break;
+
+
         case 'LogNewAnswer':
             var is_positive = true;
             var notification_id = web3.sha3('LogNewAnswer' + entry.args.question_id + entry.args.user + entry.args.bond.toString());
@@ -2854,17 +2933,33 @@ $(document).on('click', '.post-answer-button', function(e) {
         if (USE_COMMIT_REVEAL) {
             var answer_plaintext = stringToBytes32(new_answer, question_json);
             var nonce = nonceFromSeed(web3.sha3(question_id + answer_plaintext + bond));
-            var answer_hash = web3.sha3(nonce, answer_plaintext);
-            console.log('made nonce', nonce);
-            console.log('made answer_hash', answer_hash);
+            var answer_hash = answerHash(answer_plaintext, nonce);
 
-            return rc.submitAnswerCommitment.sendTransaction(question_id, answer_hash, current_question[Qi_bond], account, {from:account, gas:200000, value:bond});
+
+            console.log('answerHash for is ',answerHash(answer_plaintext, nonce));
+
+            console.log('made nonce', nonce);
+            console.log('made answer plaintext', answer_plaintext);
+            console.log('made bond', bond);
+            console.log('made answer_hash', answer_hash);
+            
+            var commitment_id = commitmentID(question_id, answer_hash, bond);
+            console.log('resulting  commitment_id', commitment_id);
+
+            // TODO: We wait for the txid here, as this is not expected to be the main UI pathway.
+            // If USE_COMMIT_REVEAL becomes common, we should add a listener and do everything asychronously....
+            return rc.submitAnswerCommitment(question_id, answer_hash, current_question[Qi_bond], account, {from:account, gas:200000, value:bond}).then( function(txid) {
+                console.log('got submitAnswerCommitment txid', txid);
+                return rc.submitAnswerReveal.sendTransaction(question_id, answer_plaintext, nonce, bond, {from:account, gas:200000});
+            });
 
         } else {
 
             // Converting to BigNumber here - ideally we should probably doing this when we parse the form
             return rc.submitAnswer.sendTransaction(question_id, stringToBytes32(new_answer, question_json), current_question[Qi_bond], {from:account, gas:200000, value:bond});
         }
+
+
 
     }).then(function(txid){
         clearForm(parent_div, question_json);
@@ -3343,6 +3438,19 @@ function fetchUserEventsAndHandle(filter, start_block, end_block) {
 
     var answer_posted = rc.LogNewAnswer(filter, {fromBlock: start_block, toBlock: end_block})
     answer_posted.get(function (error, result) {
+        var answers = result;
+        if (error === null && typeof result !== 'undefined') {
+            for (var i = 0; i < answers.length; i++) {
+                //console.log('handlePotentialUserAction', i, answers[i]);
+                handlePotentialUserAction(answers[i]);
+            }
+        } else {
+            console.log(error);
+        }
+    });
+
+    var answer_revealed = rc.LogAnswerReveal(filter, {fromBlock: start_block, toBlock: end_block})
+    answer_revealed.get(function (error, result) {
         var answers = result;
         if (error === null && typeof result !== 'undefined') {
             for (var i = 0; i < answers.length; i++) {
