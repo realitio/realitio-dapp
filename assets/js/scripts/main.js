@@ -1344,8 +1344,58 @@ function isAnythingUnrevealed(question) {
     return false;
 }
 
-function _ensureAnswerRevealsFetched(question_id, freshness, start_block) {
+function _ensureAnswerRevealsFetched(question_id, freshness, start_block, question) {
     var called_block = current_block_number;
+    var earliest_block = 0;
+    var bond_indexes = {};
+    for (var i=0; i<question['history'].length; i++) {
+        if (question['history'][i].args['is_commitment']) {
+            if (!question['history'][i].args['revealed_block']) {
+                var bond = question['history'][i].args['bond'].toString(16);
+                console.log('_ensureAnswerRevealsFetched found commitment, block', earliest_block, 'bond', bond);
+                bond_indexes[bond] = i;
+                if (earliest_block == 0 || earliest_block > question['history'][i].blockNumber) {
+                    earliest_block = question['history'][i].blockNumber;
+                }
+            }
+        }
+    }
+    console.log('bond_indexes', bond_indexes);
+    if (earliest_block > 0) {
+        return new Promise((resolve, reject)=>{
+            var reveal_logs = rc.LogAnswerReveal({question_id:question_id}, {fromBlock: earliest_block, toBlock:'latest'});
+            reveal_logs.get(function(error, answer_arr) {
+                if (error) {
+                    console.log('error in get reveal_logs');
+                    reject(error);
+                } else {
+                    console.log('got reveals');
+                    for(var j=0; j<answer_arr.length; j++) {
+                        var bond = answer_arr[j].args['bond'].toString(16);
+                        var idx = bond_indexes[bond];
+                        console.log('update answer, before->after:', question['history'][idx].answer, answer_arr[j].args['answer']);
+                        question['history'][idx].args['revealed_block'] = answer_arr[j].blockNumber;
+                        question['history'][idx].args['answer'] = answer_arr[j].args['answer'];
+                        delete bond_indexes[bond];
+                    }
+                    console.log('TODO: check bond_indexes and mark anything expired as expired');
+                    //var question = filledQuestionDetail(question_id, 'answers', called_block, answer_arr);
+                    question_detail_list[question_id] = question; // TODO : use filledQuestionDetail here? 
+                    console.log('populated question, result is', question);
+                    console.log('bond_indexes once done', bond_indexes);
+                    resolve(question);
+                }
+            });
+        });
+    } else {
+        return new Promise((resolve, reject)=>{
+            //var question = filledQuestionDetail(question_id, 'answers', called_block, answer_arr);
+
+            //resolve(question_detail_list[question_id]);
+            resolve(question);
+        });
+    }
+    /*
     return new Promise((resolve, reject)=>{
         if (isDataFreshEnough(question_id, 'answer_reveals', freshness)) {
             resolve(question_detail_list[question_id]);
@@ -1366,6 +1416,7 @@ function _ensureAnswerRevealsFetched(question_id, freshness, start_block) {
             });
         }
     });
+    */
 }
 
 function _ensureAnswersFetched(question_id, freshness, start_block) {
@@ -1383,7 +1434,10 @@ function _ensureAnswersFetched(question_id, freshness, start_block) {
                 } else {
                     var question = filledQuestionDetail(question_id, 'answers', called_block, answer_arr);
                     console.log('populated question with filledQuestionDetail', question);
-                    resolve(question);
+                    console.log('now fetching answer reveals');
+                    _ensureAnswerRevealsFetched(question_id, freshness, start_block, question).then(function(q){
+                        resolve(q);
+                    });
                 }
             });
         }
@@ -1930,7 +1984,7 @@ function displayQuestionDetail(question_detail) {
 
 function populateQuestionWindow(rcqa, question_detail, is_refresh) {
 
-    //console.log('populateQuestionWindow with detail ', question_detail);
+    console.log('populateQuestionWindow with detail ', question_detail);
     //console.log('populateQuestionWindow question_json', question_detail[Qi_question_json]);
     var question_id = question_detail[Qi_question_id];
     var question_json = question_detail[Qi_question_json];
@@ -3354,6 +3408,9 @@ function pageInit(account) {
                     case ('LogNewAnswer'):
                         if (result.args.is_commitment) {
                             console.log('got commitment', result);
+                            result.args.commitment_id = result.args.answer;
+                            // TODO: Get deadline
+                            result.args.answer = null;
                         //    break;
                         }
                         //console.log('got LogNewAnswer, block ', result.blockNumber);
