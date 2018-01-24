@@ -731,6 +731,12 @@ function isAnswered(question) {
     return (history_hash.gt(0));
 }
 
+function isCommitExpired(question, posted_ts) {
+    var commit_secs = question[Qi_timeout].toNumber() / 8;
+    console.log('commit secs are ', commit_secs);
+    return new Date().getTime() > (( posted_ts + commit_secs ) * 1000);
+}
+
 function isFinalizable(question) {
     var finalization_ts = question[Qi_finalization_ts].toNumber();
     return ((finalization_ts > 1) || (finalization_ts == 1 && new BigNumber(question[Qi_history_hash]).gt(0)));
@@ -1378,7 +1384,13 @@ function _ensureAnswerRevealsFetched(question_id, freshness, start_block, questi
                         question['history'][idx].args['answer'] = answer_arr[j].args['answer'];
                         delete bond_indexes[bond];
                     }
-                    console.log('TODO: check bond_indexes and mark anything expired as expired');
+                    //console.log('TODO: check bond_indexes and mark anything expired as expired?');
+                    /*
+                    for(var b in bond_indexes) {
+                        if (bond_indexes.hasOwnProperty(b)) {
+                        }
+                    }
+                    */
                     //var question = filledQuestionDetail(question_id, 'answers', called_block, answer_arr);
                     question_detail_list[question_id] = question; // TODO : use filledQuestionDetail here? 
                     console.log('populated question, result is', question);
@@ -2055,7 +2067,18 @@ function populateQuestionWindow(rcqa, question_detail, is_refresh) {
                 var avjazzicon = jazzicon(32, parseInt(ans['user'].toLowerCase().slice(2,10), 16) );
 
                 hist_item.find('.answer-data__avatar').html(avjazzicon);
-                hist_item.find('.current-answer').text(getAnswerString(question_json, ans.answer));
+                if (ans.is_commitment && !ans.revealed_block) {
+                    if (isCommitExpired(question_detail, ans['ts'].toNumber())) {
+                        hist_item.find('.current-answer').text('Reveal timed out');
+                        hist_item.addClass('expired-commit');
+                    } else {
+                        hist_item.find('.current-answer').text('Wait for reveal...');
+                        hist_item.addClass('unrevealed-commit');
+                    }
+                } else {
+                    hist_item.find('.current-answer').text(getAnswerString(question_json, ans.answer));
+                    hist_item.removeClass('unrevealed-commit');
+                }
                 hist_item.find('.answer-bond-value').text(web3.fromWei(ans.bond.toNumber(), 'ether'));
                 hist_item.find('.answer-time.timeago').attr('datetime', convertTsToString(ans['ts']));
                 timeAgo.render(hist_item.find('.answer-time.timeago'));
@@ -2461,7 +2484,11 @@ function renderNotifications(qdata, entry) {
             var is_positive = true;
             var notification_id = web3.sha3('LogNewAnswer' + entry.args.question_id + entry.args.user + entry.args.bond.toString());
             if (entry.args.user == account) {
-                ntext = 'You answered a question - "' + question_json['title'] + '"';
+                if (entry.args.is_commitment) {
+                    ntext = 'You committed to answering a question - "' + question_json['title'] + '"';
+                } else {
+                    ntext = 'You answered a question - "' + question_json['title'] + '"';
+                }
                 insertNotificationItem(evt, notification_id, ntext, entry.blockNumber, entry.args.question_id, true);
             } else {
                 var answered_question = rc.LogNewQuestion({question_id: question_id}, {

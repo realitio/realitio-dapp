@@ -2358,3 +2358,6 @@ div.question-setting-info .setting-info-content-hash { font-size: 9px; }
 div.question-setting-info .setting-info-question-id { font-size: 9px; }
 
 input.arbitrator-other {display:none}
+
+div.rcbrowser--qa-detail .answered-history-container .answered-history-item.expired-commit .current-answer { font-style:italic }
+div.rcbrowser--qa-detail .answered-history-container .answered-history-item.unrevealed-commit .current-answer { font-style:italic }
