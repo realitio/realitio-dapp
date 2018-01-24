@@ -2050,8 +2050,15 @@ function populateQuestionWindow(rcqa, question_detail, is_refresh) {
             }
             ans_data.find('.answer-bond-value').text(web3.fromWei(latest_answer.bond.toNumber(), 'ether'));
 
+            // Normally we don't show the last item, but if it's an unrevealed commitment then we do
+            var max_idx = idx;
+            var last_ans = question_detail['history'][idx];
+            if (last_ans.is_commitment && !last_ans.revealed_block) {
+                max_idx = idx + 1;
+            }
+
             // TODO: Do duplicate checks and ensure order in case stuff comes in weird
-            for (var i = 0; i < idx; i++) {
+            for (var i = 0; i < max_idx; i++) {
                 var ans = question_detail['history'][i].args;
                 var hist_id = 'question-window-history-item-' + web3.sha3(question_id + ans.answer + ans.bond.toString());
                 if (rcqa.find('#'+hist_id).length) {
