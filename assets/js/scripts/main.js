@@ -14,7 +14,7 @@ var timeAgo = new timeago();
 var jazzicon = require('jazzicon');
 var vsprintf = require("sprintf-js").vsprintf
 
-var USE_COMMIT_REVEAL = true;
+var USE_COMMIT_REVEAL = false;
 
 //console.log('jazzicon', jazzicon);
 
