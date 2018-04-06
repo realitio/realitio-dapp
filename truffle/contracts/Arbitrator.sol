@@ -1,15 +1,7 @@
 pragma solidity ^0.4.18;
 
 import './Owned.sol';
-
-contract RealityCheckAPI {
-    function setQuestionFee(uint256 fee) public;
-    function finalizeByArbitrator(bytes32 question_id, bytes32 answer) public;
-    function submitAnswerByArbitrator(bytes32 question_id, bytes32 answer, address answerer) public;
-    function notifyOfArbitrationRequest(bytes32 question_id, address requester) public;
-    function isFinalized(bytes32 question_id) public returns (bool);
-    function withdraw() public;
-}
+import './RealityCheck.sol';
 
 contract Arbitrator is Owned {
 
@@ -79,7 +71,7 @@ contract Arbitrator is Owned {
     function setQuestionFee(address realitycheck, uint256 fee) 
         onlyOwner 
     public {
-        RealityCheckAPI(realitycheck).setQuestionFee(fee);
+        RealityCheck(realitycheck).setQuestionFee(fee);
         LogSetQuestionFee(fee);
     }
 
@@ -91,7 +83,7 @@ contract Arbitrator is Owned {
     function submitAnswerByArbitrator(address realitycheck, bytes32 question_id, bytes32 answer, address answerer) 
         onlyOwner 
     public {
-        RealityCheckAPI(realitycheck).submitAnswerByArbitrator(question_id, answer, answerer);
+        RealityCheck(realitycheck).submitAnswerByArbitrator(question_id, answer, answerer);
     }
 
     /// @notice Request arbitration, freezing the question until we send submitAnswerByArbitrator
@@ -107,7 +99,7 @@ contract Arbitrator is Owned {
 
         require(msg.value >= arbitration_fee);
 
-        RealityCheckAPI(realitycheck).notifyOfArbitrationRequest(question_id, msg.sender);
+        RealityCheck(realitycheck).notifyOfArbitrationRequest(question_id, msg.sender);
         LogRequestArbitration(question_id, msg.value, msg.sender, 0);
 
     }
@@ -130,7 +122,7 @@ contract Arbitrator is Owned {
     function callWithdraw(address realitycheck) 
         onlyOwner 
     public {
-        RealityCheckAPI(realitycheck).withdraw(); 
+        RealityCheck(realitycheck).withdraw(); 
     }
 
 }
