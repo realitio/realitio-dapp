@@ -13,8 +13,6 @@ contract RealityCheckAPI {
 
 contract Arbitrator is Owned {
 
-    mapping(bytes32 => uint256) public arbitration_bounties;
-
     uint256 dispute_fee;
     mapping(bytes32 => uint256) custom_dispute_fees;
 
@@ -93,33 +91,24 @@ contract Arbitrator is Owned {
     function submitAnswerByArbitrator(address realitycheck, bytes32 question_id, bytes32 answer, address answerer) 
         onlyOwner 
     public {
-        delete arbitration_bounties[question_id];
         RealityCheckAPI(realitycheck).submitAnswerByArbitrator(question_id, answer, answerer);
     }
 
     /// @notice Request arbitration, freezing the question until we send submitAnswerByArbitrator
-    /// @dev The bounty can be paid only in part, in which case the last person to pay will be considered the payer
+    /// @dev The bounty must be paid in full. To split it among multiple people, use another contract
     /// Will trigger an error if the notification fails, eg because the question has already been finalized
     /// @param realitycheck The RealityCheck contract address
     /// @param question_id The question in question
     function requestArbitration(address realitycheck, bytes32 question_id) 
-    external payable returns (bool) {
+    external payable {
 
         uint256 arbitration_fee = getDisputeFee(question_id);
         require(arbitration_fee > 0);
 
-        arbitration_bounties[question_id] += msg.value;
-        uint256 paid = arbitration_bounties[question_id];
+        require(msg.value >= arbitration_fee);
 
-        if (paid >= arbitration_fee) {
-            RealityCheckAPI(realitycheck).notifyOfArbitrationRequest(question_id, msg.sender);
-            LogRequestArbitration(question_id, msg.value, msg.sender, 0);
-            return true;
-        } else {
-            require(!RealityCheckAPI(realitycheck).isFinalized(question_id));
-            LogRequestArbitration(question_id, msg.value, msg.sender, arbitration_fee - paid);
-            return false;
-        }
+        RealityCheckAPI(realitycheck).notifyOfArbitrationRequest(question_id, msg.sender);
+        LogRequestArbitration(question_id, msg.value, msg.sender, 0);
 
     }
 

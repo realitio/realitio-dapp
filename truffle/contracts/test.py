@@ -260,7 +260,7 @@ class TestRealityCheck(TestCase):
 
         self.assertFalse(self.rc0.isFinalized(self.question_id))
 
-        self.assertTrue(self.arb0.requestArbitration(self.rc0.address, self.question_id, value=self.arb0.getDisputeFee(), startgas=200000 ), "Requested arbitration")
+        self.arb0.requestArbitration(self.rc0.address, self.question_id, value=self.arb0.getDisputeFee(), startgas=200000 )
         question = self.rc0.questions(self.question_id)
         #self.assertEqual(question[QINDEX_FINALIZATION_TS], 1, "When arbitration is pending for an answered question, we set the finalization_ts to 1")
         self.assertTrue(question[QINDEX_IS_PENDING_ARBITRATION], "When arbitration is pending for an answered question, we set the is_pending_arbitration flag to True")
@@ -284,7 +284,11 @@ class TestRealityCheck(TestCase):
 
         self.assertFalse(self.rc0.isFinalized(self.question_id))
 
-        self.assertTrue(self.arb0.requestArbitration(self.rc0.address, self.question_id, value=self.arb0.getDisputeFee(), startgas=200000 ), "Requested arbitration")
+        # Insufficient fee should raise an error
+        with self.assertRaises(TransactionFailed):
+            self.arb0.requestArbitration(self.rc0.address, self.question_id, value=self.arb0.getDisputeFee() - 1, startgas=200000 )
+
+        self.arb0.requestArbitration(self.rc0.address, self.question_id, value=self.arb0.getDisputeFee(), startgas=200000 )
         question = self.rc0.questions(self.question_id)
         self.assertTrue(question[QINDEX_IS_PENDING_ARBITRATION], "When arbitration is pending for an answered question, we set the arbitration flag to True")
 
