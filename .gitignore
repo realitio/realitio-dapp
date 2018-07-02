@@ -16,7 +16,6 @@ node_modules
 config/development/contracts.json
 config/development/*.sol.js
 config/test/contracts.json
-build
 dist
 /assets/js/bundle.js
 /assets/css/main.css
