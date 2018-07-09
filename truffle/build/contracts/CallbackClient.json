@@ -72,7 +72,7 @@
       "absolutePath": "/var/www/html/dev/truffle/contracts/CallbackClient.sol",
       "exportedSymbols": {
         "CallbackClient": [
-          370
+          366
         ]
       }
     },
@@ -86,7 +86,7 @@
             ".6"
           ]
         },
-        "id": 336,
+        "id": 332,
         "name": "PragmaDirective",
         "src": "0:23:2"
       },
@@ -102,17 +102,17 @@
           "documentation": null,
           "fullyImplemented": true,
           "linearizedBaseContracts": [
-            370
+            366
           ],
           "name": "CallbackClient",
-          "scope": 371
+          "scope": 367
         },
         "children": [
           {
             "attributes": {
               "constant": false,
               "name": "answers",
-              "scope": 370,
+              "scope": 366,
               "stateVariable": true,
               "storageLocation": "default",
               "type": "mapping(bytes32 => bytes32)",
@@ -130,7 +130,7 @@
                       "name": "bytes32",
                       "type": "bytes32"
                     },
-                    "id": 337,
+                    "id": 333,
                     "name": "ElementaryTypeName",
                     "src": "64:7:2"
                   },
@@ -139,17 +139,17 @@
                       "name": "bytes32",
                       "type": "bytes32"
                     },
-                    "id": 338,
+                    "id": 334,
                     "name": "ElementaryTypeName",
                     "src": "73:7:2"
                   }
                 ],
-                "id": 339,
+                "id": 335,
                 "name": "Mapping",
                 "src": "56:25:2"
               }
             ],
-            "id": 340,
+            "id": 336,
             "name": "VariableDeclaration",
             "src": "56:40:2"
           },
@@ -166,7 +166,7 @@
                       "constant": false,
                       "indexed": false,
                       "name": "question_id",
-                      "scope": 348,
+                      "scope": 344,
                       "stateVariable": false,
                       "storageLocation": "default",
                       "type": "bytes32",
@@ -179,12 +179,12 @@
                           "name": "bytes32",
                           "type": "bytes32"
                         },
-                        "id": 341,
+                        "id": 337,
                         "name": "ElementaryTypeName",
                         "src": "130:7:2"
                       }
                     ],
-                    "id": 342,
+                    "id": 338,
                     "name": "VariableDeclaration",
                     "src": "130:19:2"
                   },
@@ -193,7 +193,7 @@
                       "constant": false,
                       "indexed": false,
                       "name": "question_answer",
-                      "scope": 348,
+                      "scope": 344,
                       "stateVariable": false,
                       "storageLocation": "default",
                       "type": "bytes32",
@@ -206,12 +206,12 @@
                           "name": "bytes32",
                           "type": "bytes32"
                         },
-                        "id": 343,
+                        "id": 339,
                         "name": "ElementaryTypeName",
                         "src": "159:7:2"
                       }
                     ],
-                    "id": 344,
+                    "id": 340,
                     "name": "VariableDeclaration",
                     "src": "159:23:2"
                   },
@@ -220,7 +220,7 @@
                       "constant": false,
                       "indexed": false,
                       "name": "sender",
-                      "scope": 348,
+                      "scope": 344,
                       "stateVariable": false,
                       "storageLocation": "default",
                       "type": "address",
@@ -233,22 +233,22 @@
                           "name": "address",
                           "type": "address"
                         },
-                        "id": 345,
+                        "id": 341,
                         "name": "ElementaryTypeName",
                         "src": "192:7:2"
                       }
                     ],
-                    "id": 346,
+                    "id": 342,
                     "name": "VariableDeclaration",
                     "src": "192:14:2"
                   }
                 ],
-                "id": 347,
+                "id": 343,
                 "name": "ParameterList",
                 "src": "120:92:2"
               }
             ],
-            "id": 348,
+            "id": 344,
             "name": "EventDefinition",
             "src": "103:110:2"
           },
@@ -262,7 +262,7 @@
               ],
               "name": "__realitycheck_callback",
               "payable": false,
-              "scope": 370,
+              "scope": 366,
               "stateMutability": "nonpayable",
               "superFunction": null,
               "visibility": "public"
@@ -274,7 +274,7 @@
                     "attributes": {
                       "constant": false,
                       "name": "question_id",
-                      "scope": 369,
+                      "scope": 365,
                       "stateVariable": false,
                       "storageLocation": "default",
                       "type": "bytes32",
@@ -287,12 +287,12 @@
                           "name": "bytes32",
                           "type": "bytes32"
                         },
-                        "id": 349,
+                        "id": 345,
                         "name": "ElementaryTypeName",
                         "src": "252:7:2"
                       }
                     ],
-                    "id": 350,
+                    "id": 346,
                     "name": "VariableDeclaration",
                     "src": "252:19:2"
                   },
@@ -300,7 +300,7 @@
                     "attributes": {
                       "constant": false,
                       "name": "question_answer",
-                      "scope": 369,
+                      "scope": 365,
                       "stateVariable": false,
                       "storageLocation": "default",
                       "type": "bytes32",
@@ -313,17 +313,17 @@
                           "name": "bytes32",
                           "type": "bytes32"
                         },
-                        "id": 351,
+                        "id": 347,
                         "name": "ElementaryTypeName",
                         "src": "273:7:2"
                       }
                     ],
-                    "id": 352,
+                    "id": 348,
                     "name": "VariableDeclaration",
                     "src": "273:23:2"
                   }
                 ],
-                "id": 353,
+                "id": 349,
                 "name": "ParameterList",
                 "src": "251:46:2"
               },
@@ -334,7 +334,7 @@
                   ]
                 },
                 "children": [],
-                "id": 354,
+                "id": 350,
                 "name": "ParameterList",
                 "src": "298:0:2"
               },
@@ -369,11 +369,11 @@
                                   "overloadedDeclarations": [
                                     null
                                   ],
-                                  "referencedDeclaration": 340,
+                                  "referencedDeclaration": 336,
                                   "type": "mapping(bytes32 => bytes32)",
                                   "value": "answers"
                                 },
-                                "id": 355,
+                                "id": 351,
                                 "name": "Identifier",
                                 "src": "308:7:2"
                               },
@@ -383,16 +383,16 @@
                                   "overloadedDeclarations": [
                                     null
                                   ],
-                                  "referencedDeclaration": 350,
+                                  "referencedDeclaration": 346,
                                   "type": "bytes32",
                                   "value": "question_id"
                                 },
-                                "id": 356,
+                                "id": 352,
                                 "name": "Identifier",
                                 "src": "316:11:2"
                               }
                             ],
-                            "id": 357,
+                            "id": 353,
                             "name": "IndexAccess",
                             "src": "308:20:2"
                           },
@@ -402,21 +402,21 @@
                               "overloadedDeclarations": [
                                 null
                               ],
-                              "referencedDeclaration": 352,
+                              "referencedDeclaration": 348,
                               "type": "bytes32",
                               "value": "question_answer"
                             },
-                            "id": 358,
+                            "id": 354,
                             "name": "Identifier",
                             "src": "331:15:2"
                           }
                         ],
-                        "id": 359,
+                        "id": 355,
                         "name": "Assignment",
                         "src": "308:38:2"
                       }
                     ],
-                    "id": 360,
+                    "id": 356,
                     "name": "ExpressionStatement",
                     "src": "308:38:2"
                   },
@@ -456,11 +456,11 @@
                               "overloadedDeclarations": [
                                 null
                               ],
-                              "referencedDeclaration": 348,
+                              "referencedDeclaration": 344,
                               "type": "function (bytes32,bytes32,address)",
                               "value": "LogCallback"
                             },
-                            "id": 361,
+                            "id": 357,
                             "name": "Identifier",
                             "src": "356:11:2"
                           },
@@ -470,11 +470,11 @@
                               "overloadedDeclarations": [
                                 null
                               ],
-                              "referencedDeclaration": 350,
+                              "referencedDeclaration": 346,
                               "type": "bytes32",
                               "value": "question_id"
                             },
-                            "id": 362,
+                            "id": 358,
                             "name": "Identifier",
                             "src": "368:11:2"
                           },
@@ -484,11 +484,11 @@
                               "overloadedDeclarations": [
                                 null
                               ],
-                              "referencedDeclaration": 352,
+                              "referencedDeclaration": 348,
                               "type": "bytes32",
                               "value": "question_answer"
                             },
-                            "id": 363,
+                            "id": 359,
                             "name": "Identifier",
                             "src": "381:15:2"
                           },
@@ -510,46 +510,46 @@
                                   "overloadedDeclarations": [
                                     null
                                   ],
-                                  "referencedDeclaration": 3360,
+                                  "referencedDeclaration": 5223,
                                   "type": "msg",
                                   "value": "msg"
                                 },
-                                "id": 364,
+                                "id": 360,
                                 "name": "Identifier",
                                 "src": "398:3:2"
                               }
                             ],
-                            "id": 365,
+                            "id": 361,
                             "name": "MemberAccess",
                             "src": "398:10:2"
                           }
                         ],
-                        "id": 366,
+                        "id": 362,
                         "name": "FunctionCall",
                         "src": "356:53:2"
                       }
                     ],
-                    "id": 367,
+                    "id": 363,
                     "name": "ExpressionStatement",
                     "src": "356:53:2"
                   }
                 ],
-                "id": 368,
+                "id": 364,
                 "name": "Block",
                 "src": "298:118:2"
               }
             ],
-            "id": 369,
+            "id": 365,
             "name": "FunctionDefinition",
             "src": "219:197:2"
           }
         ],
-        "id": 370,
+        "id": 366,
         "name": "ContractDefinition",
         "src": "25:394:2"
       }
     ],
-    "id": 371,
+    "id": 367,
     "name": "SourceUnit",
     "src": "0:420:2"
   },
@@ -559,5 +559,5 @@
   },
   "networks": {},
   "schemaVersion": "1.0.1",
-  "updatedAt": "2018-03-21T02:43:44.182Z"
+  "updatedAt": "2018-07-09T01:47:31.205Z"
 }

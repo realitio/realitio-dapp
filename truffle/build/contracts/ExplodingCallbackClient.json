@@ -31,7 +31,7 @@
       "absolutePath": "/var/www/html/dev/truffle/contracts/ExplodingCallbackClient.sol",
       "exportedSymbols": {
         "ExplodingCallbackClient": [
-          641
+          637
         ]
       }
     },
@@ -45,7 +45,7 @@
             ".6"
           ]
         },
-        "id": 631,
+        "id": 627,
         "name": "PragmaDirective",
         "src": "0:23:4"
       },
@@ -61,10 +61,10 @@
           "documentation": null,
           "fullyImplemented": true,
           "linearizedBaseContracts": [
-            641
+            637
           ],
           "name": "ExplodingCallbackClient",
-          "scope": 642
+          "scope": 638
         },
         "children": [
           {
@@ -77,7 +77,7 @@
               ],
               "name": "__realitycheck_callback",
               "payable": false,
-              "scope": 641,
+              "scope": 637,
               "stateMutability": "nonpayable",
               "superFunction": null,
               "visibility": "public"
@@ -89,7 +89,7 @@
                     "attributes": {
                       "constant": false,
                       "name": "question_id",
-                      "scope": 640,
+                      "scope": 636,
                       "stateVariable": false,
                       "storageLocation": "default",
                       "type": "bytes32",
@@ -102,12 +102,12 @@
                           "name": "bytes32",
                           "type": "bytes32"
                         },
-                        "id": 632,
+                        "id": 628,
                         "name": "ElementaryTypeName",
                         "src": "98:7:4"
                       }
                     ],
-                    "id": 633,
+                    "id": 629,
                     "name": "VariableDeclaration",
                     "src": "98:19:4"
                   },
@@ -115,7 +115,7 @@
                     "attributes": {
                       "constant": false,
                       "name": "question_answer",
-                      "scope": 640,
+                      "scope": 636,
                       "stateVariable": false,
                       "storageLocation": "default",
                       "type": "bytes32",
@@ -128,17 +128,17 @@
                           "name": "bytes32",
                           "type": "bytes32"
                         },
-                        "id": 634,
+                        "id": 630,
                         "name": "ElementaryTypeName",
                         "src": "119:7:4"
                       }
                     ],
-                    "id": 635,
+                    "id": 631,
                     "name": "VariableDeclaration",
                     "src": "119:23:4"
                   }
                 ],
-                "id": 636,
+                "id": 632,
                 "name": "ParameterList",
                 "src": "97:46:4"
               },
@@ -149,7 +149,7 @@
                   ]
                 },
                 "children": [],
-                "id": 637,
+                "id": 633,
                 "name": "ParameterList",
                 "src": "144:0:4"
               },
@@ -157,27 +157,27 @@
                 "children": [
                   {
                     "children": [],
-                    "id": 638,
+                    "id": 634,
                     "name": "Throw",
                     "src": "154:5:4"
                   }
                 ],
-                "id": 639,
+                "id": 635,
                 "name": "Block",
                 "src": "144:22:4"
               }
             ],
-            "id": 640,
+            "id": 636,
             "name": "FunctionDefinition",
             "src": "65:101:4"
           }
         ],
-        "id": 641,
+        "id": 637,
         "name": "ContractDefinition",
         "src": "25:144:4"
       }
     ],
-    "id": 642,
+    "id": 638,
     "name": "SourceUnit",
     "src": "0:170:4"
   },
@@ -187,5 +187,5 @@
   },
   "networks": {},
   "schemaVersion": "1.0.1",
-  "updatedAt": "2018-03-21T02:43:44.183Z"
+  "updatedAt": "2018-07-09T01:47:31.207Z"
 }
