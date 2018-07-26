@@ -1094,15 +1094,21 @@ function filledQuestionDetail(question_id, data_type, freshness, data) {
             break;
 
         case 'answers':
+
+            console.log("freshness",freshness,question.freshness.answers)
             if (data && (freshness >= question.freshness.answers)) {
                 question.freshness.answers = freshness;
                 question['history'] = data;
             }
+
+            console.log("length",question['history'].length,question['history_unconfirmed'].length)
+
             if (data.length && question['history_unconfirmed'].length) {
                 for (var j = 0; j < question['history_unconfirmed'].length; j++) {
                     var ubond = question['history_unconfirmed'][j].args.bond;
                     for (var i = 0; i < question['history'].length; i++) {
                         // If there's something unconfirmed with an equal or lower bond, remove it
+                        console.log("bonds",data[i].args.bond.toNumber(),ubond.toNumber())
                         if (data[i].args.bond.gte(ubond)) {
                             //console.log('removing unconfirmed entry due to higher bond from confirmed');
                             question['history_unconfirmed'].splice(j, 1);
