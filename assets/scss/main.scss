@@ -755,7 +755,7 @@ a.questions__item__title {
     color: $gray;
 }
 .rcbrowser-main-header-title.question-title {
-    margin: 10px 0;   
+    margin: 10px 0;
 }
 a.questions__item__title:hover {
     color: $blue;
@@ -1447,7 +1447,7 @@ span.rcbrowser__close-button {
 }
 
 div.rcbrowser--qa-detail.unconfirmed-transaction .unconfirmed-question-header {
-    display: block !important;
+    display: block;
 }
 
 .unconfirmed-answer-container.is-open .unconfirmed-answer-inner {

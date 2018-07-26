@@ -1095,20 +1095,20 @@ function filledQuestionDetail(question_id, data_type, freshness, data) {
 
         case 'answers':
 
-            console.log("freshness",freshness,question.freshness.answers)
+            console.log("freshness", freshness, question.freshness.answers)
             if (data && (freshness >= question.freshness.answers)) {
                 question.freshness.answers = freshness;
                 question['history'] = data;
             }
 
-            console.log("length",question['history'].length,question['history_unconfirmed'].length)
+            console.log("length", question['history'].length, question['history_unconfirmed'].length)
 
             if (data.length && question['history_unconfirmed'].length) {
                 for (var j = 0; j < question['history_unconfirmed'].length; j++) {
                     var ubond = question['history_unconfirmed'][j].args.bond;
                     for (var i = 0; i < question['history'].length; i++) {
                         // If there's something unconfirmed with an equal or lower bond, remove it
-                        console.log("bonds",data[i].args.bond.toNumber(),ubond.toNumber())
+                        console.log("bonds", data[i].args.bond.toNumber(), ubond.toNumber())
                         if (data[i].args.bond.gte(ubond)) {
                             //console.log('removing unconfirmed entry due to higher bond from confirmed');
                             question['history_unconfirmed'].splice(j, 1);
@@ -1729,8 +1729,9 @@ function updateQuestionWindowIfOpen(question) {
     var question_id = question[Qi_question_id];
     var window_id = 'qadetail-' + question_id;
     var rcqa = $('#' + window_id);
+    rcqa = populateQuestionWindow(rcqa, question, true);
     if (rcqa.length) {
-        rcqa = populateQuestionWindow(rcqa, question, true);
+
     }
 
 }
@@ -1810,6 +1811,9 @@ function populateQuestionWindow(rcqa, question_detail, is_refresh) {
 
     if (question_detail[Qi_block_mined] > 0) {
         rcqa.removeClass('unconfirmed-transaction').removeClass('has-warnings');
+        $(".unconfirmed-question-header").hide()
+    } else {
+        $(".unconfirmed-question-header").show()
     }
 
     var bond = new BigNumber(web3.toWei(0.0001, 'ether'));
@@ -3102,6 +3106,58 @@ function pageInit(account) {
     })
 
 
+    function handleAction(result) {
+
+        handlePotentialUserAction(result, true);
+
+        // Handles front page event changes.
+        // NB We need to reflect other changes too...
+        var evt = result['event'];
+        if (evt == 'LogNewTemplate') {
+            var template_id = result.args.template_id;
+            var question_text = result.args.question_text;
+            template_content[template_id] = question_text;
+            return;
+        } else if (evt == 'LogNewQuestion') {
+            handleQuestionLog(result);
+        } else if (evt == 'LogWithdraw') {
+            updateUserBalanceDisplay();
+        } else {
+            var question_id = result.args.question_id;
+
+            switch (evt) {
+
+                case ('LogNewAnswer'):
+                    //console.log('got LogNewAnswer, block ', result.blockNumber);
+                    ensureQuestionDetailFetched(question_id, 1, 1, result.blockNumber, result.blockNumber).then(function(question) {
+                        updateQuestionWindowIfOpen(question);
+                        //console.log('should be getting latest', question, result.blockNumber);
+                        scheduleFinalizationDisplayUpdate(question);
+                        updateRankingSections(question, Qi_finalization_ts, question[Qi_finalization_ts])
+                    });
+                    break;
+
+                case ('LogFundAnswerBounty'):
+                    ensureQuestionDetailFetched(question_id, 1, 1, result.blockNumber, -1).then(function(question) {
+                        //console.log('updating with question', question);
+                        updateQuestionWindowIfOpen(question);
+                        updateRankingSections(question, Qi_bounty, question[Qi_bounty])
+                    });
+                    break;
+
+                default:
+                    ensureQuestionDetailFetched(question_id, 1, 1, result.blockNumber, -1).then(function(question) {
+                        updateQuestionWindowIfOpen(question);
+                        updateRankingSections(question, Qi_finalization_ts, question[Qi_finalization_ts])
+                    });
+
+            }
+
+        }
+
+
+    }
+
     var subscription = web3js.eth.subscribe('logs', evts.options,
             function(error, result) {
                 if (!error)
@@ -3113,54 +3169,8 @@ function pageInit(account) {
 
             if (result) {
                 //console.log('got watch event', error, result);
-
                 // Check the action to see if it is interesting, if it is then populate notifications etc
-                handlePotentialUserAction(result, true);
-
-                // Handles front page event changes.
-                // NB We need to reflect other changes too...
-                var evt = result['event'];
-                if (evt == 'LogNewTemplate') {
-                    var template_id = result.args.template_id;
-                    var question_text = result.args.question_text;
-                    template_content[template_id] = question_text;
-                    return;
-                } else if (evt == 'LogNewQuestion') {
-                    handleQuestionLog(result);
-                } else if (evt == 'LogWithdraw') {
-                    updateUserBalanceDisplay();
-                } else {
-                    var question_id = result.args.question_id;
-
-                    switch (evt) {
-
-                        case ('LogNewAnswer'):
-                            //console.log('got LogNewAnswer, block ', result.blockNumber);
-                            ensureQuestionDetailFetched(question_id, 1, 1, result.blockNumber, result.blockNumber).then(function(question) {
-                                updateQuestionWindowIfOpen(question);
-                                //console.log('should be getting latest', question, result.blockNumber);
-                                scheduleFinalizationDisplayUpdate(question);
-                                updateRankingSections(question, Qi_finalization_ts, question[Qi_finalization_ts])
-                            });
-                            break;
-
-                        case ('LogFundAnswerBounty'):
-                            ensureQuestionDetailFetched(question_id, 1, 1, result.blockNumber, -1).then(function(question) {
-                                //console.log('updating with question', question);
-                                updateQuestionWindowIfOpen(question);
-                                updateRankingSections(question, Qi_bounty, question[Qi_bounty])
-                            });
-                            break;
-
-                        default:
-                            ensureQuestionDetailFetched(question_id, 1, 1, result.blockNumber, -1).then(function(question) {
-                                updateQuestionWindowIfOpen(question);
-                                updateRankingSections(question, Qi_finalization_ts, question[Qi_finalization_ts])
-                            });
-
-                    }
-
-                }
+                setTimeout(handleAction, 10000, result)
             }
 
         })
