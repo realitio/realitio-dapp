@@ -1,7 +1,7 @@
 {
-  "name": "realitycheck-demo",
+  "name": "realitio-dapp",
   "version": "1.0.0",
-  "description": "RealityCheck demo",
+  "description": "Realitio Dapp",
   "main": "",
   "scripts": {
     "css:sass": "node-sass assets/scss/main.scss assets/css/main.css",
