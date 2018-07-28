@@ -43,10 +43,9 @@ const BLOCK_EXPLORERS = {
 };
 
 const INFURA_NODES = {
-    1: 'https://mainnet.infura.io/tSrhlXUe1sNEO5ZWhpUK',
-    3: 'https://ropsten.infura.io/tSrhlXUe1sNEO5ZWhpUK',
-    4: 'https://rinkeby.infura.io/tSrhlXUe1sNEO5ZWhpUK',
-    1337: 'https://localhost:8545'
+    1: 'wss://mainnet.infura.io/ws',
+    3: 'wss://ropsten.infura.io/ws',
+    4: 'wss://rinkeby.infura.io/ws'
 };
 
 // The point where we deployed the contract on the network
@@ -3479,17 +3478,22 @@ window.addEventListener('load', function() {
     var is_web3_fallback = false;
 
     if (typeof web3 === 'undefined') {
-        var is_web3_fallback = true;
         // fallback - use your fallback strategy (local node / hosted node + in-dapp id mgmt / fail)
-        web3js = new Web3(new Web3.providers.HttpProvider(INFURA_NODES[valid_ids[0]]));
+        is_web3_fallback = true;
         console.log('no web3js, using infura on network', valid_ids[0]);
         $('body').addClass('error-no-metamask-plugin').addClass('error');
-    } else {
-        // Use Mist/MetaMask's provider
-        console.log('got web3js, go ahead');
-        web3js = new Web3(new Web3.providers.WebsocketProvider("wss://rinkeby.infura.io/ws"));
+        web3 = new Web3();
+    } 
 
+    var net_id = web3.currentProvider.publicConfigStore._state.networkVersion
+    if (valid_ids.indexOf(net_id) === -1) {
+        $('body').addClass('error-invalid-network').addClass('error');
+    } else {
+        web3js = new Web3(new Web3.providers.WebsocketProvider(INFURA_NODES[net_id]));
+        initializeGlobalVariablesForNetwork(net_id);
+        populateArbitratorSelect(arbitrator_list[net_id]);
     }
+
 
     // Set up a filter so we always know the latest block number.
     // This helps us keep track of how fresh our question data etc is.
@@ -3575,16 +3579,6 @@ window.addEventListener('load', function() {
     }
 
     //setTimeout(bounceEffect, 8000);
-
-    var net_id = web3.currentProvider.publicConfigStore._state.networkVersion
-        //web3js.version.getNetwork((err, net_id) => {
-        //if (err === null) {
-    if (valid_ids.indexOf(net_id) === -1) {
-        $('body').addClass('error-invalid-network').addClass('error');
-    } else {
-        initializeGlobalVariablesForNetwork(net_id);
-        populateArbitratorSelect(arbitrator_list[net_id]);
-    }
     //}
     //});
 });
