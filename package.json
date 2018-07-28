@@ -47,6 +47,7 @@
     "jquery-browserify": "^1.8.1",
     "jquery-datepicker": "1.11.5",
     "jquery-expander": "^1.7.0",
+    "lerna": "^3.0.0-rc.0",
     "node-sass": "^4.9.0",
     "perfect-scrollbar": "^0.6.16",
     "postcss-cli": "^2.6.0",
@@ -57,6 +58,5 @@
     "watch": "^1.0.1",
     "web3": "ethereum/web3.js#v1.0.0-beta.34"
   },
-  "devDependencies": {
-  }
+  "devDependencies": {}
 }
