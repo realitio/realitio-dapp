@@ -1,0 +1,4 @@
+67c67
+<     this.connection = new Ws(url, undefined, undefined, headers);
+---
+>     this.connection = new Ws(url);
