@@ -3167,8 +3167,9 @@ function pageInit(account) {
 
     var subscription = web3ws.eth.subscribe('logs', evts.options,
             function(error, result) {
-                if (!error)
+                if (!error) {
                     console.log(result);
+                }
             })
         .on("data", function(result) {
             result = evts.formatter(result)
