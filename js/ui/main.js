@@ -23,7 +23,7 @@ const BigNumber = require('bignumber.js');
 const timeago = require('timeago.js');
 const timeAgo = new timeago();
 const jazzicon = require('jazzicon');
-const ethjsunit = require('ethjs-unit');
+const ethjsunit = require('../lib/old-ethjs-unit.js');
 
 // Cache the results of a call that checks each arbitrator is set to use the current realitycheck contract
 var verified_arbitrators = {};
