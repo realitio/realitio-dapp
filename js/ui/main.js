@@ -1100,6 +1100,8 @@ function filledQuestionDetail(question_id, data_type, freshness, data) {
             if (data && (freshness >= question.freshness.answers)) {
                 question.freshness.answers = freshness;
                 question['history'] = data;
+            } else {
+                console.log('not updating history because of freshness', freshness, question.freshness.answers);
             }
             if (data.length && question['history_unconfirmed'].length) {
                 for (var j = 0; j < question['history_unconfirmed'].length; j++) {
@@ -1158,6 +1160,27 @@ function isDataFreshEnough(question_id, data_type, freshness) {
         //console.log('is not fresh', question_detail_list[question_id].freshness[data_type], freshness)
         return false;
     }
+}
+
+
+function waitUntilInfuraCatchesUp(block_number) {
+    console.log('in waitUntilInfuraCatchesUp, waiting an extra block');
+    var num_tries = 100;
+    return new Promise((resolve, reject) => {
+        (function retryThenWait() {
+            console.log('doing a retryThenWait want/got', block_number, current_block_number);
+            if (num_tries <= 0) {
+                return reject("Infura never caught up");
+            }
+            if (current_block_number < block_number+1) {
+                console.log('caught up, continuing');
+                return resolve(current_block_number);
+            } 
+            console.log('scheduling a retry');
+            num_tries--;
+            window.setTimeout(retryThenWait, 3000);
+        })();
+    });
 }
 
 // No freshness as this only happens once per question
@@ -1248,9 +1271,10 @@ function _ensureAnswersFetched(question_id, freshness, start_block) {
     var called_block = current_block_number;
     return new Promise((resolve, reject) => {
         if (isDataFreshEnough(question_id, 'answers', freshness)) {
+            console.log('answers already fresh enough, not fetching', freshness);
             resolve(question_detail_list[question_id]);
         } else {
-            //console.log('fetching answers from start_block', start_block);
+            console.log('fetching answers from start_block', start_block);
             var answer_logs = rc.LogNewAnswer({
                 question_id: question_id
             }, {
@@ -1258,6 +1282,7 @@ function _ensureAnswersFetched(question_id, freshness, start_block) {
                 toBlock: 'latest'
             });
             answer_logs.get(function(error, answer_arr) {
+                console.log('answer_logs response', error, answer_arr);
                 if (error) {
                     console.log('error in get');
                     reject(error);
@@ -3105,53 +3130,55 @@ function pageInit(account) {
             if (!error && result) {
                 console.log('got watch event', error, result);
 
+                waitUntilInfuraCatchesUp(result.blockNumber).then(function() {
+
+console.log('caught up, handling event');
                 // Check the action to see if it is interesting, if it is then populate notifications etc
-                handlePotentialUserAction(result, true);
+                    handlePotentialUserAction(result, true);
 
-                // Handles front page event changes.
-                // NB We need to reflect other changes too...
-                var evt = result['event'];
-                if (evt == 'LogNewTemplate') {
-                    var template_id = result.args.template_id;
-                    var question_text = result.args.question_text;
-                    template_content[template_id] = question_text;
-                    return;
-                } else if (evt == 'LogNewQuestion') {
-                    handleQuestionLog(result);
-                } else if (evt == 'LogWithdraw') {
-                    updateUserBalanceDisplay();
-                } else {
-                    var question_id = result.args.question_id;
+                    // Handles front page event changes.
+                    // NB We need to reflect other changes too...
+                    var evt = result['event'];
+                    if (evt == 'LogNewTemplate') {
+                        var template_id = result.args.template_id;
+                        var question_text = result.args.question_text;
+                        template_content[template_id] = question_text;
+                        return;
+                    } else if (evt == 'LogNewQuestion') {
+                        handleQuestionLog(result);
+                    } else if (evt == 'LogWithdraw') {
+                        updateUserBalanceDisplay();
+                    } else {
+                        var question_id = result.args.question_id;
 
-                    switch (evt) {
+                        switch (evt) {
 
-                        case ('LogNewAnswer'):
-                            //console.log('got LogNewAnswer, block ', result.blockNumber);
-                            ensureQuestionDetailFetched(question_id, 1, 1, result.blockNumber, result.blockNumber).then(function(question) {
-                                updateQuestionWindowIfOpen(question);
-                                //console.log('should be getting latest', question, result.blockNumber);
-                                scheduleFinalizationDisplayUpdate(question);
-                                updateRankingSections(question, Qi_finalization_ts, question[Qi_finalization_ts])
-                            });
-                            break;
+                            case ('LogNewAnswer'):
+                                console.log('got LogNewAnswer, block ', result.blockNumber);
+                                ensureQuestionDetailFetched(question_id, 1, 1, result.blockNumber, result.blockNumber).then(function(question) {
+                                    updateQuestionWindowIfOpen(question);
+                                    console.log('should be getting latest', question, result.blockNumber);
+                                    scheduleFinalizationDisplayUpdate(question);
+                                    updateRankingSections(question, Qi_finalization_ts, question[Qi_finalization_ts])
+                                });
+                                break;
 
-                        case ('LogFundAnswerBounty'):
-                            ensureQuestionDetailFetched(question_id, 1, 1, result.blockNumber, -1).then(function(question) {
-                                //console.log('updating with question', question);
-                                updateQuestionWindowIfOpen(question);
-                                updateRankingSections(question, Qi_bounty, question[Qi_bounty])
-                            });
-                            break;
+                            case ('LogFundAnswerBounty'):
+                                ensureQuestionDetailFetched(question_id, 1, 1, result.blockNumber, -1).then(function(question) {
+                                    //console.log('updating with question', question);
+                                    updateQuestionWindowIfOpen(question);
+                                    updateRankingSections(question, Qi_bounty, question[Qi_bounty])
+                                });
+                                break;
 
-                        default:
-                            ensureQuestionDetailFetched(question_id, 1, 1, result.blockNumber, -1).then(function(question) {
-                                updateQuestionWindowIfOpen(question);
-                                updateRankingSections(question, Qi_finalization_ts, question[Qi_finalization_ts])
-                            });
-
+                            default:
+                                ensureQuestionDetailFetched(question_id, 1, 1, result.blockNumber, -1).then(function(question) {
+                                    updateQuestionWindowIfOpen(question);
+                                    updateRankingSections(question, Qi_finalization_ts, question[Qi_finalization_ts])
+                                });
+                        }
                     }
-
-                }
+                });
             }
         });
 
@@ -3242,6 +3269,7 @@ function fetchAndDisplayQuestions(end_block, fetch_i) {
 // Sometimes things go wrong getting events
 // To mitigate the damage, run a refresh of the currently-open window etc
 function scheduleFallbackTimer() {
+return;
      window.setInterval(function() {
         //console.log('checking for open windows');
         $('div.rcbrowser--qa-detail.is-open').each(function() {
