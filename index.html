@@ -29,8 +29,8 @@
             </div>
             <span class="error-label no-metamask-plugin">You need to <a href="https://metamask.io">install the MetaMask plugin</a> to use Realitio. </span>
             <span class="error-label no-metamask-accounts">No accounts found. Please make sure MetaMask is unlocked then refresh the page.</span>
-            <span class="error-label invalid-network">Invalid network. Please use the Rinkeby test network.</span>
-            <span data-network-id="4,8995,1337"></span>
+            <span class="error-label invalid-network">Invalid network. Please use the main Ethereum network.</span>
+            <span data-network-id="1"></span>
         </div>
     </div>
     <div id="main">
@@ -38,8 +38,8 @@
             Check your Q&amp;A
         </div>
         <header id="site-header">
-            <a id="help-center-button" href="">How it works</a>
-            <a id="your-qa-button" class="rcbrowser__open-button" href="" title="Your Question &amp; Answer" data-target-id="id2">My account</a>
+            <a id="help-center-button" href="">How It Works</a>
+            <a id="your-qa-button" class="rcbrowser__open-button" href="" title="Your Question &amp; Answer" data-target-id="id2">My Account</a>
             <span id="push-icon">notifications_active</span>
             <h1 class="logo">
                 <a href="https://realit.io/">Realitio</a>
@@ -204,7 +204,7 @@
     </div><!-- /#main -->
 
     <div id="footer-notification-bar" style="display: none;">
-        <span>This application will be undergoing a live real-money test until Wednesday, August 22nd.</span>
+        <span>This application will be undergoing a live real-money test until Tuesday, September, 18th.</span>
         <a id="got-it-button" href="">Got it</a>
     </div>
 
@@ -230,7 +230,7 @@
             <div class="cols">
                 <h3>Join Us</h3>
                 <ul>
-                    <li><a href="https://discordapp.com/channels/463917311267569674/"><span class="icon discord">Discord</span>s</a></li>
+                    <li><a href="https://discordapp.com/channels/463917311267569674/"><span class="icon discord">Discord</span></a></li>
                     <li><a href="https://twitter.com/RealitioProject"><span class="icon twitter">Twitter</span></a></li>
                     <li><a href="https://medium.com/@edmundedgar"><span class="icon twitter">Medium</span></a></li>
                 </ul>
@@ -256,7 +256,7 @@
                 <h3>Asking Questions</h3>
                     <p>The first step is to ask a question that you want confirmed. To encourage others to answer, you can offer a reward that goes to whomever gives the final answer. (You can also leave the reward as zero if you plan to supply the answer yourself and assume it will survive challenges.) </p>
 
-                    <h3>Opening Date & Timeout</h3>
+                    <h3>Opening Date & Countdown</h3>
                     <p>The opening date is when answers can first be posted. If the event has not yet taken place, make sure the opening date is set to after the event's date. The countdown period determines the period of time an answer can be posted after an answer. Each answer resets the the countdown period. The final unchallenged answer after the countdown period expires is the winner.</p>
 
                     <h3>Answering Questions</h3>
@@ -457,7 +457,7 @@
                             <div class="input-container input-container--has-quick-help">
                                 <div class="input-inner">
                                     <!--<span class="input-header">Opening Datetime:</span>-->
-                                    <input id="opening-ts-datepicker" type="text" name="question-opening-ts" class="rcbrowser-input opening-ts form-item" placeholder="Opening date...">
+                                    <input autocomplete="off" id="opening-ts-datepicker" type="text" name="question-opening-ts" class="rcbrowser-input opening-ts form-item" placeholder="Opening date...">
                                 </div>
                                 <div class="quick-help">
                                     <span class="quick-help-button">?</span>
@@ -536,6 +536,7 @@
                                     <div class="quick-help-body"><span>Anyone who wants to challenge the final answer can request arbitration via Realitio, an Ethereum contract, or any other decision-making process you can code. The arbitrator assigns a cost for this servce that is visible on the question page.</span></div>
                                 </div>
                                 <div class="error-container">Please select arbitrator.</div>
+                                <div class="arbitrator-tos"><a target="_blank" class="arbitrator-tos-link" href="#">Arbitrator's terms of service</a></div>
                             </div>
                         </div>
                         <div class="cols-2">
@@ -558,7 +559,7 @@
                                     <span class="quick-help-button">?</span>
                                     <div class="quick-help-body"><span>The countdown period determines how long another answer can be posted after an answer. Each answer resets the the countdown period. The final unchallenged answer after the countdown period expires is the winner.</span></div>
                                 </div>
-                                <div class="error-container">Please select step delay.</div>
+                                <div class="error-container">Please select the countdown period.</div>
                             </div>
                         </div>
                     </div>
@@ -858,7 +859,7 @@
                 <div class="rcbrowser-main-header">
 
                     <div class="unconfirmed-question-header">
-                        <span class="pending-question-txid"><a target="_blank" href="#"></a></span>
+                        <span class="pending-question-txid"><br /><a target="_blank" href="#"></a></span>
                         <span class="unconfirmed-question-label">Unconfirmed Transaction</span>
                     </div>
 
@@ -938,6 +939,35 @@
                                     <p><span class="unconfirmed-answer"></span></p>
                                 </div>
                                 <span class="timeago-container"><time class="timeago" datetime=""></time></span>
+                                <div class="answer-data">
+                                    <div class="answer-data-inner">
+                                        <div class="answer-data__avatar"></div>
+                                        <div class="answer-data__item answer-data__user-id">
+                                            <span>User ID: </span><span class="answerer"></span>
+                                        </div>
+                                        <div class="answer-data__item answer-data__bond answer-data__bond--current">
+                                            <span>Bond: </span><span class="answer-bond-value"></span> <span>ETH</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="unrevealed-top-answer-container">
+                        <div class="current-answer-inner">
+                            <div class="answer-item unrevealed-top-answer-item">
+
+                                <div class="top-entry-unrevealed-warning">
+                                    The top answer has not yet been revealed.
+                                    If the correct answer is revealed, you will not get their bond.
+                                </div>
+
+                                <div class="reveal-data">
+                                    If it is not revealed this answer will expire
+                                    <span class="timeago-container"><time class="timeago reveal-time" datetime=""></time></span>.
+                                </div>
+
                                 <div class="answer-data">
                                     <div class="answer-data-inner">
                                         <div class="answer-data__avatar"></div>

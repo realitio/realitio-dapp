@@ -13,6 +13,9 @@ var web3realitio; // We run our own node to handle watch events that can't relia
 const rc_json = require('@realitio/realitio-contracts/truffle/build/contracts/RealityCheck.json');
 const arb_json = require('@realitio/realitio-contracts/truffle/build/contracts/Arbitrator.json');
 
+// For now we have a json file hard-coding the TOS of known arbitrators.
+// See https://github.com/realitio/realitio-dapp/issues/136 for the proper way to do it.
+const arb_tos = require('./arbitrator_tos.json');
 
 const arbitrator_list = require('@realitio/realitio-contracts/config/arbitrators.json');
 const TEMPLATE_CONFIG = require('@realitio/realitio-contracts/config/templates.json');
@@ -37,6 +40,7 @@ var template_content = TEMPLATE_CONFIG.content;
 var last_polled_block;
 
 const QUESTION_TYPE_TEMPLATES = TEMPLATE_CONFIG.base_ids;
+var USE_COMMIT_REVEAL = false;
 
 const BLOCK_EXPLORERS = {
     1: 'https://etherscan.io',
@@ -156,6 +160,20 @@ import Ps from 'perfect-scrollbar';
 
 function rand(min, max) {
     return min + Math.floor(Math.random() * (max - min + 1));
+}
+
+function nonceFromSeed(paramstr) {
+
+    var seed = window.localStorage.getItem('commitment-seed');
+    if (seed == null) {
+        var crypto = require('crypto');
+        seed = crypto.randomBytes(32).toString('hex');
+        console.log('made seed', seed);
+        window.localStorage.setItem('commitment-seed', seed);
+    }
+
+    return web3.sha3(paramstr + seed);
+
 }
 
 var zindex = 10;
@@ -334,12 +352,24 @@ $(document).on('change', 'input.arbitrator-other', function() {
 });
 
 $(document).on('change', 'select.arbitrator', function() {
-    console.log($(this).val());
+    console.log('arbitrator: ' + $(this).val());
     if ($(this).val() == 'other') {
         $(this).closest('form').find('input.arbitrator-other').show();
     } else {
         populateArbitratorOptionLabel($(this).find('option.arbitrator-other-select'), new BigNumber(0));
         $(this).closest('form').find('input.arbitrator-other').hide();
+    }
+    var tos_url;
+    var op = $(this).find('option:selected');
+    var tos_url = op.attr('data-tos-url');
+    console.log('tos_url', tos_url, 'op', op);
+    var tos_section = $(this).closest('.select-container').find('div.arbitrator-tos');
+    if (tos_url) {
+        tos_section.find('.arbitrator-tos-link').attr('href', tos_url);
+        tos_section.show(); 
+    } else {
+        tos_section.find('.arbitrator-tos-link').attr('href', '');
+        tos_section.hide(); 
     }
 });
 
@@ -382,9 +412,12 @@ let bounceEffect = function() {
 $('#your-qa-button,.your-qa-link').on('click', function(e) {
     e.preventDefault();
     e.stopPropagation();
-    $('#your-question-answer-window').css('z-index', ++zindex);
-    $('#your-question-answer-window').addClass('is-open');
-    $('#your-question-answer-window').css('height', $('#your-question-answer-window').height() + 'px');
+    var yourwin = $('#your-question-answer-window');
+    yourwin.css('z-index', ++zindex);
+    yourwin.addClass('is-open');
+    var winheight = (yourwin.height() > $(window).height()) ? $(window).height() : yourwin.height();
+    yourwin.css('height', winheight + 'px');
+    Ps.update(yourwin.find('.rcbrowser-inner').get(0));
     $('.tooltip').removeClass('is-visible');
     $('body').removeClass('pushing');
     markViewedToDate();
@@ -567,6 +600,7 @@ $(document).on('click', '#post-a-question-window .post-question-submit', functio
     var question_type = win.find('.question-type');
     var answer_options = win.find('.answer-option');
     var opening_ts_val = win.find('.opening-ts').val();
+
     var category = win.find('div.select-container--question-category select');
     var outcomes = [];
     for (var i = 0; i < answer_options.length; i++) {
@@ -578,10 +612,15 @@ $(document).on('click', '#post-a-question-window .post-question-submit', functio
         var qtype = question_type.val();
         var template_id = rc_template.defaultTemplateIDForType(qtype);
         var qtext = rc_question.encodeText(qtype, question_body.val(), outcomes, category.val());
+        var opening_ts = 0;
+        if (opening_ts_val != '') {
+            opening_ts = new Date(opening_ts_val);
+            opening_ts = parseInt(opening_ts / 1000);
+        }
 
         var question_id = rc_question.questionID(template_id, qtext, arbitrator, timeout_val, opening_ts, account, 0);
-        var opening_ts = new Date(opening_ts_val);
-        opening_ts = opening_ts / 1000;
+        console.log('question_id inputs for id ', question_id, template_id, qtext, arbitrator, timeout_val, opening_ts, account, 0);
+        console.log('content_hash inputs for content hash ', rc_question.contentHash(template_id, opening_ts, qtext), template_id, opening_ts, qtext);
 
         validateArbitratorForContract(arbitrator).then(function(is_ok) {
             if (!is_ok) {
@@ -612,7 +651,7 @@ $(document).on('click', '#post-a-question-window .post-question-submit', functio
                                 'user': account,
                                 'arbitrator': arbitrator,
                                 'timeout': new BigNumber(timeout_val),
-                                'content_hash': rc_question.contentHash(template_id, parseInt(opening_ts), qtext),
+                                'content_hash': rc_question.contentHash(template_id, opening_ts, qtext),
                                 'template_id': new BigNumber(template_id),
                                 'question': qtext,
                                 'created': new BigNumber(parseInt(new Date().getTime() / 1000)),
@@ -704,10 +743,90 @@ function isArbitrationPending(question) {
     return (question[Qi_is_pending_arbitration]);
 }
 
+// Return true if a user has started a commit or given an answer
+// NB Returns true even if the answer has timed out
+function isAnswerActivityStarted(question) {
+    if (isAnswered(question)) {
+        return true;
+    }
+    var history_hash = new BigNumber(question[Qi_history_hash]);
+    return (history_hash.gt(0));
+}
+
+function historyItemForCurrentAnswer(question) {
+    if (question['history'].length) {
+        for (var i=question['history'].length-1; i >= 0; i--) {
+            var item = question['history'][i].args;
+            if (!item.is_commitment || item.revealed_block) {
+                return item;
+            }
+        }
+    }
+    return null;
+}
+
+function isTopAnswerRevealable(question) {
+    // console.log('in isTopAnswerRevealable');
+    if (!isAnswerActivityStarted(question)) {
+        return false;
+    }
+    // console.log('history', question['history']);
+    if (question['history'].length == 0) {
+        return false;
+    }
+    var idx = question['history'].length - 1;
+    var item = question['history'][idx].args;
+    if (!item.is_commitment) {
+        return false;
+    }
+    if (item.revealed_block) {
+        return false;
+    }
+    if (isCommitExpired(question, item['ts'].toNumber())) {
+        return false;
+    }
+    return true;
+}
+
+function hasUnrevealedCommits(question) {
+    if (!isAnswerActivityStarted(question)) {
+        return false;
+    }
+    if (question['history'].length) {
+        for (var i=0; i<question['history'].length; i++) {
+            var item = question['history'][i].args;
+            if (item.is_commitment && !item.revealed_block) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+// Return true if there's a completed answer...
+// ...or if there's an uncommitted answer that hasn't timed out yet
+// TODO: Check for timeouts
+function isAnsweredOrAnswerActive(question) {
+    var history_hash = new BigNumber(question[Qi_history_hash]);
+    return (history_hash.gt(0));
+}
+
 function isAnswered(question) {
     var finalization_ts = question[Qi_finalization_ts].toNumber();
-    return ((finalization_ts > 1) || (finalization_ts == 1 && new BigNumber(question[Qi_history_hash]).gt(0)));
+    return (finalization_ts > 1);
 }
+
+function commitExpiryTS(question, posted_ts) {
+    var commit_secs = question[Qi_timeout].div(8);
+    return posted_ts.plus(commit_secs);
+}
+
+function isCommitExpired(question, posted_ts) {
+    var commit_secs = question[Qi_timeout].toNumber() / 8;
+    // console.log('commit secs are ', commit_secs);
+    return new Date().getTime() > (( posted_ts + commit_secs ) * 1000);
+}
+
 
 function isFinalized(question) {
     if (isArbitrationPending(question)) {
@@ -727,7 +846,6 @@ $(document).on('click', '.answer-claim-button', function() {
         var claim_args;
         var claiming;
         if (is_single_question) {
-
 
             claiming = possibleClaimableItems(question_detail);
             claim_args = claiming;
@@ -949,6 +1067,7 @@ function handlePotentialUserAction(entry, is_watch) {
 
 function updateClaimableDataForQuestion(question, answer_entry, is_watch) {
     var poss = possibleClaimableItems(question);
+    //console.log('made poss for question', poss, question[Qi_question_id]);
     if (poss['total'].isZero()) {
         delete user_claimable[question[Qi_question_id]];
     } else {
@@ -958,8 +1077,8 @@ function updateClaimableDataForQuestion(question, answer_entry, is_watch) {
 }
 
 function updateClaimableDisplay() {
-    //console.log('updateClaimableDisplay with user_claimable', user_claimable);
     var unclaimed = mergePossibleClaimable(user_claimable, false);
+    //console.log('updateClaimableDisplay with user_claimable, unclaimed', user_claimable, unclaimed);
     var claiming = mergePossibleClaimable(user_claimable, true);
     if (claiming.total.gt(0)) {
         var txids = claiming.txids;
@@ -1089,6 +1208,66 @@ function scheduleFinalizationDisplayUpdate(question) {
     }
 
 }
+
+function isAnythingUnrevealed(question) {
+    console.log('isAnythingUnrevealed pretending everything is revealed');
+    return false;
+}
+
+function _ensureAnswerRevealsFetched(question_id, freshness, start_block, question) {
+    var called_block = current_block_number;
+    var earliest_block = 0;
+    var bond_indexes = {};
+    for (var i=0; i<question['history'].length; i++) {
+        if (question['history'][i].args['is_commitment']) {
+            if (!question['history'][i].args['revealed_block']) {
+                var bond = question['history'][i].args['bond'].toString(16);
+                console.log('_ensureAnswerRevealsFetched found commitment, block', earliest_block, 'bond', bond);
+                bond_indexes[bond] = i;
+                if (earliest_block == 0 || earliest_block > question['history'][i].blockNumber) {
+                    earliest_block = question['history'][i].blockNumber;
+                }
+            }
+        }
+    }
+    // console.log('earliest_block', earliest_block);
+    if (earliest_block > 0) {
+        return new Promise((resolve, reject)=>{
+            var reveal_logs = rc.LogAnswerReveal({question_id:question_id}, {fromBlock: earliest_block, toBlock:'latest'});
+            reveal_logs.get(function(error, answer_arr) {
+                if (error) {
+                    console.log('error in get reveal_logs');
+                    reject(error);
+                } else {
+                    console.log('got reveals');
+                    for(var j=0; j<answer_arr.length; j++) {
+                        var bond = answer_arr[j].args['bond'].toString(16);
+                        var idx = bond_indexes[bond];
+                        // console.log(question_id, bond.toString(16), 'update answer, before->after:', question['history'][idx].answer, answer_arr[j].args['answer']);
+                        question['history'][idx].args['revealed_block'] = answer_arr[j].blockNumber;
+                        question['history'][idx].args['answer'] = answer_arr[j].args['answer'];
+
+                        var commitment_id = rc_question.commitmentID(question_id, answer_arr[j].args['answer_hash'], bond);
+                        question['history'][idx].args['commitment_id'] = commitment_id;
+                        delete bond_indexes[bond];
+                    }
+                    question_detail_list[question_id] = question; // TODO : use filledQuestionDetail here? 
+                    //console.log('populated question, result is', question);
+                    //console.log('bond_indexes once done', bond_indexes);
+                    resolve(question);
+                }
+            });
+        });
+    } else {
+        return new Promise((resolve, reject)=>{
+            resolve(question);
+        });
+    }
+}
+
+
+
+
 
 function filledQuestionDetail(question_id, data_type, freshness, data) {
 
@@ -1357,7 +1536,9 @@ function _ensureAnswersFetched(question_id, freshness, start_block, injected_dat
                         }
                     }
                     var question = filledQuestionDetail(question_id, 'answers', called_block, answer_arr);
-                    resolve(question);
+                    _ensureAnswerRevealsFetched(question_id, freshness, start_block, question).then(function(q){
+                        resolve(q);
+                    });
                 }
             });
         }
@@ -1400,9 +1581,9 @@ function updateUserBalanceDisplay() {
     if (!account) {
         return;
     }
-    //console.log('updating balacne for', account);
+    // console.log('updating balacne for', account);
     web3js.eth.getBalance(account, function(error, result) {
-        //console.log('got updated balacne for', account, result.toNumber());
+        // console.log('got updated balacne for', account, result.toNumber());
         if (error === null) {
             $('.account-balance').text(web3js.fromWei(result.toNumber(), 'ether'));
         }
@@ -1530,6 +1711,7 @@ function populateSectionEntry(entry, question_data) {
     });
     entry.find('.question-bounty').text(bounty);
 
+    // For these purposes we just ignore any outstanding commits
     if (isAnswered(question_data)) {
         entry.find('.questions__item__answer').text(rc_question.getAnswerString(question_json, best_answer));
         entry.addClass('has-answer');
@@ -1537,7 +1719,6 @@ function populateSectionEntry(entry, question_data) {
         entry.find('.questions__item__answer').text('');
         entry.removeClass('has-answer');
     }
-
 
     var is_answered = isAnswered(question_data);
 
@@ -1904,38 +2085,57 @@ function populateQuestionWindow(rcqa, question_detail, is_refresh) {
     }
 
     var bond = new BigNumber(web3js.toWei(0.0001, 'ether'));
-    if (isAnswered(question_detail)) {
+    if (isAnswerActivityStarted(question_detail)) {
 
         var current_container = rcqa.find('.current-answer-container');
 
-        // label for show the current answer.
-        var label = rc_question.getAnswerString(question_json, question_detail[Qi_best_answer]);
-        current_container.find('.current-answer-body').find('.current-answer').text(label);
+        if (isAnswered(question_detail)) {
+            // label for show the current answer.
+            var label = rc_question.getAnswerString(question_json, question_detail[Qi_best_answer]);
+            current_container.find('.current-answer-body').find('.current-answer').text(label);
+        }
 
         bond = question_detail[Qi_bond];
 
-        // Default to something non-zero but very low
         if (question_detail['history'].length) {
             //console.log('updateing aunswer');
-            var latest_answer = question_detail['history'][idx].args;
+            var current_answer = historyItemForCurrentAnswer(question_detail);
+            if (current_answer) {
+                current_container.attr('id', 'answer-' + current_answer.answer);
 
-            current_container.attr('id', 'answer-' + latest_answer.answer);
+                timeago.cancel(current_container.find('.current-answer-item').find('.timeago')); // cancel the old timeago timer if there is one
+                current_container.find('.current-answer-item').find('.timeago').attr('datetime', rc_question.convertTsToString(current_answer.ts));
+                timeAgo.render(current_container.find('.current-answer-item').find('.timeago'));
 
-            timeago.cancel(current_container.find('.current-answer-item').find('.timeago')); // cancel the old timeago timer if there is one
-            current_container.find('.current-answer-item').find('.timeago').attr('datetime', rc_question.convertTsToString(latest_answer.ts));
-            timeAgo.render(current_container.find('.current-answer-item').find('.timeago'));
-
-            // answerer data
-            var ans_data = rcqa.find('.current-answer-container').find('.answer-data');
-            ans_data.find('.answerer').text(latest_answer.user);
-            var avjazzicon = jazzicon(32, parseInt(latest_answer.user.toLowerCase().slice(2, 10), 16));
-            ans_data.find('.answer-data__avatar').html(avjazzicon);
-            if (latest_answer.user == account) {
-                ans_data.addClass('current-account');
-            } else {
-                ans_data.removeClass('current-account');
+                // answerer data
+                var ans_data = rcqa.find('.current-answer-container').find('.answer-data');
+                ans_data.find('.answerer').text(current_answer.user);
+                var avjazzicon = jazzicon(32, parseInt(current_answer.user.toLowerCase().slice(2, 10), 16));
+                ans_data.find('.answer-data__avatar').html(avjazzicon);
+                if (current_answer.user == account) {
+                    ans_data.addClass('current-account');
+                } else {
+                    ans_data.removeClass('current-account');
+                }
+                ans_data.find('.answer-bond-value').text(web3js.fromWei(current_answer.bond.toNumber(), 'ether'));
             }
-            ans_data.find('.answer-bond-value').text(web3js.fromWei(latest_answer.bond.toNumber(), 'ether'));
+
+            var last_ans = question_detail['history'][idx].args;
+            var unrevealed_answer_container = rcqa.find('.unrevealed-top-answer-container');
+            if (last_ans.is_commitment && !last_ans.revealed_block) {
+                unrevealed_answer_container.find('.answer-bond-value').text(web3js.fromWei(last_ans.bond.toNumber(), 'ether'));
+                unrevealed_answer_container.find('.reveal-time.timeago').attr('datetime', rc_question.convertTsToString(commitExpiryTS(question_detail, last_ans['ts'])));
+                timeAgo.render(unrevealed_answer_container.find('.reveal-time.timeago'));
+                unrevealed_answer_container.find('.answerer').text(last_ans['user']);
+                var avjazzicon = jazzicon(32, parseInt(last_ans['user'].toLowerCase().slice(2, 10), 16));
+                unrevealed_answer_container.find('.answer-data__avatar').html(avjazzicon);
+            } else {
+                unrevealed_answer_container.find('.answer-bond-value').text('');
+                unrevealed_answer_container.find('.reveal-time.timeago').attr('datetime', 0);
+                unrevealed_answer_container.find('.answer-data__avatar').html('');
+                unrevealed_answer_container.find('.answerer').text('');
+                timeago.cancel(unrevealed_answer_container.find('.reveal-time.timeago')); 
+            }
 
             // TODO: Do duplicate checks and ensure order in case stuff comes in weird
             for (var i = 0; i < idx; i++) {
@@ -1954,7 +2154,22 @@ function populateQuestionWindow(rcqa, question_detail, is_refresh) {
                 var avjazzicon = jazzicon(32, parseInt(ans['user'].toLowerCase().slice(2, 10), 16));
 
                 hist_item.find('.answer-data__avatar').html(avjazzicon);
-                hist_item.find('.current-answer').text(rc_question.getAnswerString(question_json, ans.answer));
+
+console.log(ans);
+                if (ans.is_commitment && !ans.revealed_block) {
+                    console.log('got a commitmet');
+                    if (isCommitExpired(question_detail, ans['ts'].toNumber())) {
+                        hist_item.find('.current-answer').text('Reveal timed out');
+                        hist_item.addClass('expired-commit');
+                    } else {
+                        hist_item.find('.current-answer').text('Wait for reveal...');
+                        hist_item.addClass('unrevealed-commit');
+                    }
+                } else {
+                    hist_item.find('.current-answer').text(rc_question.getAnswerString(question_json, ans.answer));
+                    hist_item.removeClass('unrevealed-commit');
+                }
+
                 hist_item.find('.answer-bond-value').text(web3js.fromWei(ans.bond.toNumber(), 'ether'));
                 hist_item.find('.answer-time.timeago').attr('datetime', rc_question.convertTsToString(ans['ts']));
                 timeAgo.render(hist_item.find('.answer-time.timeago'));
@@ -2059,7 +2274,11 @@ function populateQuestionWindow(rcqa, question_detail, is_refresh) {
         rcqa.find('.answered-history-container').after(ans_frm);
     }
 
-    rcqa.find('.rcbrowser-input--number--bond.form-item').val(web3js.fromWei(bond.toNumber(), 'ether') * 2);
+    // If the user has edited the field, never repopulate it underneath them
+    var bond_field = rcqa.find('.rcbrowser-input--number--bond.form-item');
+    if (!bond_field.hasClass('edited')) {
+        bond_field.val(web3js.fromWei(bond.toNumber(), 'ether') * 2);
+    }
 
     //console.log('call updateQuestionState');
     rcqa = updateQuestionState(question_detail, rcqa);
@@ -2129,7 +2348,13 @@ function possibleClaimableItems(question_detail) {
         // TODO: Check the history hash, and if we haven't reached it, keep going until we do
         // ...since someone may have claimed partway through
 
-        var answer = question_detail['history'][i].args.answer;
+        var answer;
+        // Only set on reveal, otherwise the answer field still holds the commitment ID for commitments
+        if (question_detail['history'][i].args.commitment_id) { 
+            answer = question_detail['history'][i].args.commitment_id;
+        } else {
+            answer = question_detail['history'][i].args.answer;
+        }
         var answerer = question_detail['history'][i].args.user;
         var bond = question_detail['history'][i].args.bond;
         var history_hash = question_detail['history'][i].args.history_hash;
@@ -2138,22 +2363,23 @@ function possibleClaimableItems(question_detail) {
             // Somebody takes over your answer
             if (answerer != account && final_answer == answer) {
                 is_yours = false;
+                //console.log(ttl.toString(), 'minus', bond.toString());
                 ttl = ttl.minus(bond); // pay them their bond
             } else {
+                //console.log(ttl.toString(), 'plus', bond.toString());
                 ttl = ttl.plus(bond); // take their bond
             }
         } else {
             // You take over someone else's answer
-            if (final_answer == answer) {
+            if (answerer == account && final_answer == answer) {
                 is_yours = true;
+                //console.log(ttl.toString(), 'plus', bond.toString());
                 ttl = ttl.plus(bond); // your bond back
-                if (!is_first) {
-                    ttl = ttl.plus(bond); // their takeover payment to you
-                }
             }
-            
         }
         if (is_first && is_yours) {
+            //console.log('adding your bounty');
+            //console.log(ttl.toString(), 'plus', question_detail[Qi_bounty].toString());
             ttl = ttl.plus(question_detail[Qi_bounty]);
         }
 
@@ -2353,7 +2579,11 @@ function renderNotifications(qdata, entry) {
             var is_positive = true;
             var notification_id = web3js.sha3('LogNewAnswer' + entry.args.question_id + entry.args.user + entry.args.bond.toString());
             if (entry.args.user == account) {
-                ntext = 'You answered a question - "' + question_json['title'] + '"';
+                if (entry.args.is_commitment) {
+                    ntext = 'You committed to answering a question - "' + question_json['title'] + '"';
+                } else {
+                    ntext = 'You answered a question - "' + question_json['title'] + '"';
+                }
                 insertNotificationItem(evt, notification_id, ntext, entry.blockNumber, entry.args.question_id, true);
             } else {
                 var answered_question = rc.LogNewQuestion({
@@ -2378,6 +2608,37 @@ function renderNotifications(qdata, entry) {
                 });
             }
             break;
+
+        case 'LogAnswerReveal':
+            var is_positive = true;
+            var notification_id = web3.sha3('LogAnswerReveal' + entry.args.question_id + entry.args.user + entry.args.bond.toString());
+            if (entry.args.user == account) {
+                ntext = 'You revealed an answer to a question - "' + question_json['title'] + '"';
+                insertNotificationItem(evt, notification_id, ntext, entry.blockNumber, entry.args.question_id, true);
+            } else {
+                var answered_question = rc.LogNewQuestion({question_id: question_id}, {
+                    fromBlock: START_BLOCK,
+                    toBlock: 'latest'
+                });
+                answered_question.get(function (error, result2) {
+                    if (error === null && typeof result2 !== 'undefined') {
+                        if (result2[0].args.user == account) {
+                            ntext = 'Someone revealed their answer to your question';
+                        } else if (qdata['history'][qdata['history'].length - 2].args.user == account) {
+                            is_positive = false;
+                            ntext = 'Your answer was overwritten';
+                        }
+                        if (typeof ntext !== 'undefined') {
+                            ntext += ' - "' + question_json['title'] + '"';
+                            insertNotificationItem(evt, notification_id, ntext, entry.blockNumber, entry.args.question_id, is_positive);
+                        }
+                    }
+                });
+            }
+            break;
+
+
+
 
         case 'LogFundAnswerBounty':
             var notification_id = web3js.sha3('LogFundAnswerBounty' + entry.args.question_id + entry.args.bounty.toString() + entry.args.bounty_added.toString() + entry.args.user);
@@ -2465,7 +2726,7 @@ function renderNotifications(qdata, entry) {
                     } else if (qdata['history'] && qdata['history'][qdata['history'].length - 2].args.user == account) {
                         ntext = 'The question you answered is finalized';
                     } else {
-                        ntext = 'Some question was finalized';
+                        ntext = 'A question was finalized';
                     }
                     if (typeof ntext !== 'undefined') {
                         ntext += ' - "' + question_json['title'] + '"';
@@ -2634,6 +2895,23 @@ function makeSelectAnswerInput(question_json, opening_ts) {
 function updateQuestionState(question, question_window) {
     if (isAnswered(question)) {
         question_window.addClass('has-answer');
+    } else {
+        question_window.removeClass('has-answer');
+    }
+
+    if (hasUnrevealedCommits(question)) {
+        question_window.addClass('has-unrevealed-commits');
+    } else {
+        question_window.removeClass('has-unrevealed-commits');
+    }
+
+    if (isTopAnswerRevealable(question)) {
+        question_window.addClass('top-entry-unrevealed');
+    } else {
+        question_window.removeClass('top-entry-unrevealed');
+    }
+
+    if (isAnsweredOrAnswerActive(question)) {
         if (isFinalized(question)) {
             timeago.cancel(question_window.find('.resolved-at-value.timeago'));
             question_window.find('.resolved-at-value').attr('datetime', rc_question.convertTsToString(question[Qi_finalization_ts]));
@@ -2643,12 +2921,11 @@ function updateQuestionState(question, question_window) {
             question_window.find('.answer-deadline').attr('datetime', rc_question.convertTsToString(question[Qi_finalization_ts]));
             timeAgo.render(question_window.find('.answer-deadline.timeago')); // TODO: Does this work if we haven't displayed the item yet?
         }
-    } else {
-        question_window.removeClass('has-answer');
-    }
+    } 
 
     // The first item is the current answer
-    if (question['history'].length > 1) {
+    // However we don't show it as current answer if it's unrevealed
+    if (question['history'].length > 1 || (question['history'].length  == 1 && hasUnrevealedCommits(question) ) ) {
         question_window.addClass('has-history');
     } else {
         question_window.removeClass('has-history');
@@ -2741,7 +3018,14 @@ $(document).on('click', '.post-answer-button', function(e) {
 
     var parent_div = $(this).parents('div.rcbrowser--qa-detail');
     var question_id = parent_div.attr('data-question-id');
-    var bond = web3js.toWei(new BigNumber(parent_div.find('input[name="questionBond"]').val()), 'ether');
+
+    var bond = new BigNumber(0);
+    var bond_field = parent_div.find('input[name="questionBond"]');
+    try {
+        bond  = web3js.toWei(new BigNumber(bond_field.val()), 'ether');
+    } catch (err) {
+        console.log('Could not parse bond field value');
+    }
 
     var question, current_answer, new_answer;
     var question_json;
@@ -2836,11 +3120,37 @@ $(document).on('click', '.post-answer-button', function(e) {
 
             submitted_question_id_timestamp[question_id] = new Date().getTime();
 
-            return rc.submitAnswer.sendTransaction(question_id, new_answer, current_question[Qi_bond], {
-                from: account,
-                gas: 200000,
-                value: bond
-            });
+            // Remove the edited note to allow the field to be automatically populated again
+            bond_field.removeClass('edited'); 
+
+            if (USE_COMMIT_REVEAL) {
+                var answer_plaintext = new_answer;
+                var nonce = nonceFromSeed(web3.sha3(question_id + answer_plaintext + bond));
+                var answer_hash = rc_question.answerHash(answer_plaintext, nonce);
+
+                console.log('answerHash for is ',rc_question.answerHash(answer_plaintext, nonce));
+
+                console.log('made nonce', nonce);
+                console.log('made answer plaintext', answer_plaintext);
+                console.log('made bond', bond);
+                console.log('made answer_hash', answer_hash);
+
+                var commitment_id = rc_question.commitmentID(question_id, answer_hash, bond);
+                console.log('resulting  commitment_id', commitment_id);
+
+                // TODO: We wait for the txid here, as this is not expected to be the main UI pathway.
+                // If USE_COMMIT_REVEAL becomes common, we should add a listener and do everything asychronously....
+                return rc.submitAnswerCommitment(question_id, answer_hash, current_question[Qi_bond], account, {from:account, gas:200000, value:bond}).then( function(txid) {
+                    console.log('got submitAnswerCommitment txid', txid);
+                    return rc.submitAnswerReveal.sendTransaction(question_id, answer_plaintext, nonce, bond, {from:account, gas:200000});
+                });
+            } else {
+                return rc.submitAnswer.sendTransaction(question_id, new_answer, current_question[Qi_bond], {
+                    from: account,
+                    gas: 200000,
+                    value: bond
+                });
+            }
         }).then(function(txid) {
             clearForm(parent_div, question_json);
             var fake_history = {
@@ -3040,6 +3350,7 @@ $(document).on('keyup', '.rcbrowser-input.rcbrowser-input--number', function(e) 
     } else if (!$(this).hasClass('rcbrowser-input--number--answer') && (value <= 0)) {
         $(this).parent().parent().addClass('is-error');
     } else if ($(this).hasClass('rcbrowser-input--number--bond')) {
+        $(this).addClass('edited');
         let question_id = $(this).closest('.rcbrowser.rcbrowser--qa-detail').attr('data-question-id');
         let current_idx = question_detail_list[question_id]['history'].length - 1;
         let current_bond = new BigNumber(0);
@@ -3194,6 +3505,14 @@ function handleEvent(error, result) {
         switch (evt) {
 
             case ('LogNewAnswer'):
+                if (result.args.is_commitment) {
+                    console.log('got commitment', result);
+                    result.args.commitment_id = result.args.answer;
+                    // TODO: Get deadline
+                    result.args.answer = null;
+                    // break;
+                }
+
                 //console.log('got LogNewAnswer, block ', result.blockNumber);
                 ensureQuestionDetailFetched(question_id, 1, 1, result.blockNumber, result.blockNumber, {'answers': [result]}).then(function(question) {
                     updateQuestionWindowIfOpen(question);
@@ -3307,28 +3626,15 @@ function fetchAndDisplayQuestions(end_block, fetch_i) {
 
         console.log('History read complete back to block', START_BLOCK);
 
-
         //look at current sections and update blockchain scanning message to
         //no questions found if no items exist
-
-        if($("#questions-latest .questions-list > *").length == 3){
-          $('#questions-latest').find('.no-questions-category').css('display', 'block');
-          $('#questions-latest').find('.scanning-questions-category').css('display', 'none');
-        }
-
-        if($("#questions-closing-soon .questions-list > *").length == 3){
-          $('#questions-closing-soon').find('.no-questions-category').css('display', 'block');
-          $('#questions-closing-soon').find('.scanning-questions-category').css('display', 'none');
-        }
-
-        if($("#questions-high-reward .questions-list > *").length == 3){
-          $('#questions-high-reward').find('.no-questions-category').css('display', 'block');
-          $('#questions-high-reward').find('.scanning-questions-category').css('display', 'none');
-        }
-
-        if($("#questions-resolved .questions-list > *").length == 3){
-          $('#questions-resolved').find('.no-questions-category').css('display', 'block');
-          $('#questions-resolved').find('.scanning-questions-category').css('display', 'none');
+        var detypes = Object.keys(display_entries);
+        for (var i=0; i<detypes.length; i++) {
+            var detype = detypes[i];
+            if (display_entries[detype].ids.length == 0) {
+                $('#' + detype).find('.no-questions-category').css('display', 'block');
+                $('#' + detype).find('.scanning-questions-category').css('display', 'none');
+            }
         }
 
         scheduleFallbackTimer();
@@ -3413,6 +3719,19 @@ function fetchUserEventsAndHandle(filter, start_block, end_block) {
         toBlock: end_block
     })
     answer_posted.get(function(error, result) {
+        var answers = result;
+        if (error === null && typeof result !== 'undefined') {
+            for (var i = 0; i < answers.length; i++) {
+                //console.log('handlePotentialUserAction', i, answers[i]);
+                handlePotentialUserAction(answers[i]);
+            }
+        } else {
+            console.log(error);
+        }
+    });
+
+    var answer_revealed = rc.LogAnswerReveal(filter, {fromBlock: start_block, toBlock: end_block})
+    answer_revealed.get(function (error, result) {
         var answers = result;
         if (error === null && typeof result !== 'undefined') {
             for (var i = 0; i < answers.length; i++) {
@@ -3510,7 +3829,7 @@ function parseHash() {
     return args;
 }
 
-function populateArbitratorOptionLabel(op, fee, txt) {
+function populateArbitratorOptionLabel(op, fee, txt, tos) {
     if (txt) {
         op.attr('data-text-main', txt);
     } else {
@@ -3521,6 +3840,9 @@ function populateArbitratorOptionLabel(op, fee, txt) {
     }
     op.text(txt);
     op.attr('data-question-fee', '0x' + fee.toString(16));
+    if (tos) {
+        op.attr('data-tos-url', tos);
+    }
 }
 
 function populateArbitratorSelect(network_arbs) {
@@ -3560,7 +3882,11 @@ function populateArbitratorSelect(network_arbs) {
                         myri.arbitrator_question_fees.call(na_addr).then(function(fee) {
                             var arb_item = a_template.clone().removeClass('arbitrator-template-item').addClass('arbitrator-option');
                             arb_item.val(na_addr);
-                            populateArbitratorOptionLabel(arb_item, fee, na_title);
+                            var tos;
+                            if (arb_tos[na_addr]) {
+                                tos = arb_tos[na_addr];
+                            }
+                            populateArbitratorOptionLabel(arb_item, fee, na_title, tos);
                             if (is_first) {
                                 arb_item.attr('selected', true);
                                 is_first = false;
@@ -3684,6 +4010,7 @@ window.addEventListener('load', function() {
                 }
 
                 var args = parseHash();
+                USE_COMMIT_REVEAL = (parseInt(args['commit']) == 1);
                 if (args['category']) {
                     category = args['category'];
                     $('body').addClass('category-' + category);
