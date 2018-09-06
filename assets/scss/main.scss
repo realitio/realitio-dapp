@@ -291,18 +291,21 @@ body.pushing #push-icon {
     width: 20px;
     height: 20px;
     position: absolute;
-    left: 0;
-    top: 17px;
-    color: $black;
+    left: 20px;
+    top: 18px;
+    color: #565656;
     font-size: 20px;
     font-weight: normal;
+    color: $black;
 }
 
 select#language {
-    margin-left: 4px;
-    color: gray;
     color: $black;
     font-weight: bold;
+    position: relative;
+    z-index: 2;
+    width: 50px;
+    text-indent: 24px;
 }
 
 body.pushing .page-qa #push-icon {
