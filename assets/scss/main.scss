@@ -167,7 +167,8 @@ input, button, textarea, select {
 }
 
 
-#site-header a {
+#site-header a,
+#site-header div#your-lang-button {
     margin-left: 20px;
     text-decoration: none;
     padding: 20px;
@@ -175,6 +176,7 @@ input, button, textarea, select {
     display: inline-block;
     margin-top: 0px;
     margin-bottom: 40px;
+    position: relative;
 }
 
 h1.logo {
@@ -269,19 +271,38 @@ span.network-status.test-network {
 
 body #push-icon {
     display:none;
+    font-family: 'Material Icons';
+    width: 20px;
+    height: 20px;
+    right: -5px;
+    position: absolute;
+    top: 8px;
+    color: $orange;
+    font-size: 20px;
 }
 
 body.pushing #push-icon {
+    display: block;
+}
+
+#language-icon {
     font-family: 'Material Icons';
     display: block;
     width: 20px;
     height: 20px;
     position: absolute;
-    right: -5px;
-    position: absolute;
-    top: 25px;
-    color: $orange;
+    left: 0;
+    top: 17px;
+    color: $black;
     font-size: 20px;
+    font-weight: normal;
+}
+
+select#language {
+    margin-left: 4px;
+    color: gray;
+    color: $black;
+    font-weight: bold;
 }
 
 body.pushing .page-qa #push-icon {
