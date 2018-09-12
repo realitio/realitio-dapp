@@ -8,7 +8,7 @@ const rc_template = require('@realitio/realitio-lib/formatters/template.js');
 // The library is Web3, metamask's instance will be web3, we instantiate our own as web3js
 const Web3 = require('web3');
 var web3js; // This should be the normal metamask instance
-var web3realitio; // We run our own node to handle watch events that can't reliably be done with infura
+var web3ws; // We run our own node to handle watch events that can't reliably be done with infura
 
 const rc_json = require('@realitio/realitio-contracts/truffle/build/contracts/RealityCheck.json');
 const arb_json = require('@realitio/realitio-contracts/truffle/build/contracts/Arbitrator.json');
@@ -26,6 +26,10 @@ const timeago = require('timeago.js');
 const timeAgo = new timeago();
 const jazzicon = require('jazzicon');
 
+// Version that ships with web3 1.0 no longer supports decimals
+// We use decimals for interpretting human-inputted numbers, losing a wei or two to rounding is ok
+const ethjs_unit_decimal = require('../lib/ethjs-unit-decimal.js');
+
 // Cache the results of a call that checks each arbitrator is set to use the current realitycheck contract
 var verified_arbitrators = {};
 var failed_arbitrators = {};
@@ -39,6 +43,8 @@ var template_content = TEMPLATE_CONFIG.content;
 
 var last_polled_block;
 
+var is_account_active = false;
+
 const QUESTION_TYPE_TEMPLATES = TEMPLATE_CONFIG.base_ids;
 var USE_COMMIT_REVEAL = false;
 
@@ -50,11 +56,10 @@ const BLOCK_EXPLORERS = {
     1337: 'https://etherscan.io'
 };
 
-const RPC_NODES = {
-    1: 'https://rc-dev-3.socialminds.jp', // 'https://mainnet.infura.io/tSrhlXUe1sNEO5ZWhpUK',
-    3: 'https://ropsten.infura.io/tSrhlXUe1sNEO5ZWhpUK',
-    4: 'https://rc-dev-4.socialminds.jp', // 'https://rinkeby.infura.io/tSrhlXUe1sNEO5ZWhpUK',
-    1337: 'https://localhost:8545'
+const WS_NODES = {
+    1: 'wss://mainnet.infura.io/ws',
+    3: 'wss://ropsten.infura.io/ws',
+    4: 'wss://rinkeby.infura.io/ws'
 };
 
 // The point where we deployed the contract on the network
@@ -101,6 +106,18 @@ const Qi_block_mined = 17;
 BigNumber.config({
     RABGE: 256
 });
+
+// TODO: Check this still handles decimals
+const ethStringToWeiBigNumber = function(numstr, unit) {
+    unit = (unit == null) ? 'ether' : unit;
+    return ethjs_unit_decimal.toWei(numstr, unit);
+};
+
+const weiBigNumberToEthString = function(bignum, unit) {
+    unit = (unit == null) ? 'ether' : unit;
+    return Web3.utils.fromWei(Web3.utils.toBN(bignum), unit);
+}
+
 const ONE_ETH = 1000000000000000000;
 
 var block_timestamp_cache = {};
@@ -114,6 +131,7 @@ var Arbitrator;
 
 var account;
 var rc;
+var rctx; // Metamask instance for sending transactions
 var rcrealitio; // Instance using our node
 
 var display_entries = {
@@ -333,17 +351,16 @@ $(document).on('change', 'input.arbitrator-other', function() {
     var arb_text = $(this).val();
     var sel_cont = $(this).closest('.select-container');
     if (/^(0x)?[0-9a-f]{1,40}$/i.test(arb_text)) {
-        Arbitrator.at(arb_text).then(function(ar) {
-            ar.realitycheck().call().then(function(rcaddr) {
-                if (rcaddr != rc.address) {
-                    console.log('reality check mismatch');
-                    return;
-                }
-                rc.arbitrator_question_fees.call(arb_text).then(function(fee) {
-                    populateArbitratorOptionLabel(sel_cont.find('option.arbitrator-other-select'), fee);
-                }).catch(function() {
-                    populateArbitratorOptionLabel(sel_cont.find('option.arbitrator-other-select'), new BigNumber(0));
-                });
+        var ar = new web3ws.eth.Contract(arb_json['abi'], arb_text);
+        ar.methods.realitycheck().call().then(function(rcaddr) {
+            if (rcaddr != rc.address) {
+                console.log('reality check mismatch');
+                return;
+            }
+            rc.methods.arbitrator_question_fees(arb_text).call().then(function(fee) {
+                populateArbitratorOptionLabel(sel_cont.find('option.arbitrator-other-select'), fee);
+            }).catch(function() {
+                populateArbitratorOptionLabel(sel_cont.find('option.arbitrator-other-select'), new BigNumber(0));
             });
         });
     } else {
@@ -362,7 +379,7 @@ $(document).on('change', 'select.arbitrator', function() {
     var tos_url;
     var op = $(this).find('option:selected');
     var tos_url = op.attr('data-tos-url');
-    console.log('tos_url', tos_url, 'op', op);
+    // console.log('tos_url', tos_url, 'op', op);
     var tos_section = $(this).closest('.select-container').find('div.arbitrator-tos');
     if (tos_url) {
         tos_section.find('.arbitrator-tos-link').attr('href', tos_url);
@@ -606,7 +623,7 @@ $(document).on('click', '#post-a-question-window .post-question-submit', functio
     for (var i = 0; i < answer_options.length; i++) {
         outcomes[i] = answer_options[i].value;
     }
-    var reward = (reward_val == '') ? new BigNumber(0) : new BigNumber(web3js.toWei(reward_val, 'ether'));
+    var reward = (reward_val == '') ? new BigNumber(0) : ethStringToWeiBigNumber(reward_val, 'ether');
 
     if (validate(win)) {
         var qtype = question_type.val();
@@ -623,90 +640,93 @@ $(document).on('click', '#post-a-question-window .post-question-submit', functio
         console.log('content_hash inputs for content hash ', rc_question.contentHash(template_id, opening_ts, qtext), template_id, opening_ts, qtext);
 
         validateArbitratorForContract(arbitrator).then(function(is_ok) {
+console.log('validateArbitratorForContract done');
             if (!is_ok) {
                 console.log('bad arbitrator');
                 return;
             }
-            rc.arbitrator_question_fees.call(arbitrator).then(function(fee) {
+console.log('calling qquestion fee', arbitrator);
+            rc.methods.arbitrator_question_fees(arbitrator).call().then(function(fee_str) {
+				var fee = new BigNumber(fee_str);
                 if (!fee.equals(expected_question_fee)) {
                     console.log('fee has changed');
                     populateArbitratorOptionLabel(win.find('.arbitrator option:selected'), fee);
                     return;
                 }
 
-                rc.askQuestion.sendTransaction(template_id, qtext, arbitrator, timeout_val, opening_ts, 0, {
-                        from: account,
-                        gas: 200000,
-                        value: reward.plus(fee)
-                    })
-                    .then(function(txid) {
-                        //console.log('sent tx with id', txid);
+console.log('got fee, asking question', fee);
+                rctx.methods.askQuestion(template_id, qtext, arbitrator, timeout_val, opening_ts, 0).send({
+					from: account,
+					gas: 200000,
+					value: reward.plus(fee)
+				}).on('transactionHash', function(txid) {
+					console.log('sent ask tx with id', txid);
 
-                        // Make a fake log entry
-                        var fake_log = {
-                            'entry': 'LogNewQuestion',
-                            'blockNumber': 0, // unconfirmed
-                            'args': {
-                                'question_id': question_id,
-                                'user': account,
-                                'arbitrator': arbitrator,
-                                'timeout': new BigNumber(timeout_val),
-                                'content_hash': rc_question.contentHash(template_id, opening_ts, qtext),
-                                'template_id': new BigNumber(template_id),
-                                'question': qtext,
-                                'created': new BigNumber(parseInt(new Date().getTime() / 1000)),
-                                'opening_ts': new BigNumber(parseInt(opening_ts))
-                            }
-                        }
-                        var fake_call = [];
-                        fake_call[Qi_finalization_ts - 1] = new BigNumber(0);
-                        fake_call[Qi_is_pending_arbitration] = false;
-                        fake_call[Qi_arbitrator - 1] = arbitrator;
-                        fake_call[Qi_timeout - 1] = new BigNumber(timeout_val);
-                        fake_call[Qi_content_hash - 1] = rc_question.contentHash(template_id, parseInt(opening_ts), qtext),
-                        fake_call[Qi_bounty - 1] = reward;
-                        fake_call[Qi_best_answer - 1] = "0x0";
-                        fake_call[Qi_bond - 1] = new BigNumber(0);
-                        fake_call[Qi_history_hash - 1] = "0x0";
-                        fake_call[Qi_opening_ts - 1] = new BigNumber(opening_ts);
+					// Make a fake log entry
+					var fake_log = {
+						'entry': 'LogNewQuestion',
+						'blockNumber': 0, // unconfirmed
+						'returnValues': {
+							'question_id': question_id,
+							'user': account,
+							'arbitrator': arbitrator,
+							'timeout': timeout_val,
+							'content_hash': rc_question.contentHash(template_id, opening_ts, qtext),
+							'template_id': template_id,
+							'question': qtext,
+							'created': parseInt(new Date().getTime() / 1000),
+							'opening_ts': parseInt(opening_ts)
+						}
+					}
+					var fake_call = [];
+					fake_call[Qi_finalization_ts - 1] = new BigNumber(0);
+					fake_call[Qi_is_pending_arbitration] = false;
+					fake_call[Qi_arbitrator - 1] = arbitrator;
+					fake_call[Qi_timeout - 1] = new BigNumber(timeout_val);
+					fake_call[Qi_content_hash - 1] = rc_question.contentHash(template_id, parseInt(opening_ts), qtext),
+					fake_call[Qi_bounty - 1] = reward;
+					fake_call[Qi_best_answer - 1] = "0x0";
+					fake_call[Qi_bond - 1] = new BigNumber(0);
+					fake_call[Qi_history_hash - 1] = "0x0";
+					fake_call[Qi_opening_ts - 1] = new BigNumber(opening_ts);
 
-                        var q = filledQuestionDetail(question_id, 'question_log', 0, fake_log);
-                        q = filledQuestionDetail(question_id, 'question_call', 0, fake_call);
-                        q = filledQuestionDetail(question_id, 'question_json', 0, rc_question.populatedJSONForTemplate(template_content[template_id], qtext));
+					var q = filledQuestionDetail(question_id, 'question_log', 0, fake_log);
+					q = filledQuestionDetail(question_id, 'question_call', 0, fake_call);
+					q = filledQuestionDetail(question_id, 'question_json', 0, rc_question.populatedJSONForTemplate(template_content[template_id], qtext));
 
-                        // Turn the post question window into a question detail window
-                        var rcqa = $('.rcbrowser--qa-detail.template-item').clone();
-                        win.html(rcqa.html());
-                        win = populateQuestionWindow(win, q, false);
+					// Turn the post question window into a question detail window
+					var rcqa = $('.rcbrowser--qa-detail.template-item').clone();
+					win.html(rcqa.html());
+					win = populateQuestionWindow(win, q, false);
 
-                        // TODO: Once we have code to know which network we're on, link to a block explorer
-                        win.find('.pending-question-txid a').attr('href', block_explorer + '/tx/' + txid);
-                        win.find('.pending-question-txid a').text(txid.substr(0, 12) + "...");
-                        win.addClass('unconfirmed-transaction').addClass('has-warnings');
-                        win.attr('data-pending-txid', txid);
+					// TODO: Once we have code to know which network we're on, link to a block explorer
+					win.find('.pending-question-txid a').attr('href', block_explorer + '/tx/' + txid);
+					win.find('.pending-question-txid a').text(txid.substr(0, 12) + "...");
+					win.addClass('unconfirmed-transaction').addClass('has-warnings');
+					win.attr('data-pending-txid', txid);
 
-                        win.find('.rcbrowser__close-button').on('click', function() {
-                            let parent_div = $(this).closest('div.rcbrowser.rcbrowser--qa-detail');
-                            let left = parseInt(parent_div.css('left').replace('px', ''));
-                            let top = parseInt(parent_div.css('top').replace('px', ''));
-                            let data_x = (parseInt(parent_div.attr('data-x')) || 0);
-                            let data_y = (parseInt(parent_div.attr('data-y')) || 0);
-                            left += data_x;
-                            top += data_y;
-                            window_position[question_id] = {};
-                            window_position[question_id]['x'] = left;
-                            window_position[question_id]['y'] = top;
-                            win.remove();
-                            document.documentElement.style.cursor = ""; // Work around Interact draggable bug
-                        });
+					win.find('.rcbrowser__close-button').on('click', function() {
+						let parent_div = $(this).closest('div.rcbrowser.rcbrowser--qa-detail');
+						let left = parseInt(parent_div.css('left').replace('px', ''));
+						let top = parseInt(parent_div.css('top').replace('px', ''));
+						let data_x = (parseInt(parent_div.attr('data-x')) || 0);
+						let data_y = (parseInt(parent_div.attr('data-y')) || 0);
+						left += data_x;
+						top += data_y;
+						window_position[question_id] = {};
+						window_position[question_id]['x'] = left;
+						window_position[question_id]['y'] = top;
+						win.remove();
+						document.documentElement.style.cursor = ""; // Work around Interact draggable bug
+					});
 
-                        var window_id = 'qadetail-' + question_id;
-                        win.removeClass('rcbrowser--postaquestion').addClass('rcbrowser--qa-detail');
-                        win.attr('id', window_id);
-                        win.attr('data-question-id', question_id);
-                        Ps.initialize(win.find('.rcbrowser-inner').get(0));
+					var window_id = 'qadetail-' + question_id;
+					win.removeClass('rcbrowser--postaquestion').addClass('rcbrowser--qa-detail');
+					win.attr('id', window_id);
+					win.attr('data-question-id', question_id);
+					Ps.initialize(win.find('.rcbrowser-inner').get(0));
 
-                    });
+				});
             });
         });
     }
@@ -756,7 +776,7 @@ function isAnswerActivityStarted(question) {
 function historyItemForCurrentAnswer(question) {
     if (question['history'].length) {
         for (var i=question['history'].length-1; i >= 0; i--) {
-            var item = question['history'][i].args;
+            var item = question['history'][i].returnValues;
             if (!item.is_commitment || item.revealed_block) {
                 return item;
             }
@@ -775,14 +795,14 @@ function isTopAnswerRevealable(question) {
         return false;
     }
     var idx = question['history'].length - 1;
-    var item = question['history'][idx].args;
+    var item = question['history'][idx].returnValues;
     if (!item.is_commitment) {
         return false;
     }
     if (item.revealed_block) {
         return false;
     }
-    if (isCommitExpired(question, item['ts'].toNumber())) {
+    if (isCommitExpired(question, item['ts'])) {
         return false;
     }
     return true;
@@ -794,7 +814,7 @@ function hasUnrevealedCommits(question) {
     }
     if (question['history'].length) {
         for (var i=0; i<question['history'].length; i++) {
-            var item = question['history'][i].args;
+            var item = question['history'][i].returnValues;
             if (item.is_commitment && !item.revealed_block) {
                 return true;
             }
@@ -812,7 +832,7 @@ function isAnsweredOrAnswerActive(question) {
 }
 
 function isAnswered(question) {
-    var finalization_ts = question[Qi_finalization_ts].toNumber();
+    var finalization_ts = question[Qi_finalization_ts];
     return (finalization_ts > 1);
 }
 
@@ -822,7 +842,7 @@ function commitExpiryTS(question, posted_ts) {
 }
 
 function isCommitExpired(question, posted_ts) {
-    var commit_secs = question[Qi_timeout].toNumber() / 8;
+    var commit_secs = question[Qi_timeout] / 8;
     // console.log('commit secs are ', commit_secs);
     return new Date().getTime() > (( posted_ts + commit_secs ) * 1000);
 }
@@ -832,7 +852,7 @@ function isFinalized(question) {
     if (isArbitrationPending(question)) {
         return false;
     }
-    var fin = question[Qi_finalization_ts].toNumber()
+    var fin = question[Qi_finalization_ts];
     var res = ((fin > 1) && (fin * 1000 < new Date().getTime()));
     return res;
 }
@@ -877,7 +897,7 @@ $(document).on('click', '.answer-claim-button', function() {
         //  5 answers 73702
 
         var gas = 140000 + (30000 * claim_args['history_hashes'].length);
-        rc.claimMultipleAndWithdrawBalance.sendTransaction(claim_args['question_ids'], claim_args['answer_lengths'], claim_args['history_hashes'], claim_args['answerers'], claim_args['bonds'], claim_args['answers'], {
+        rctx.methods.claimMultipleAndWithdrawBalance(claim_args['question_ids'], claim_args['answer_lengths'], claim_args['history_hashes'], claim_args['answerers'], claim_args['bonds'], claim_args['answers']).send({
                 from: account,
                 gas: gas
             })
@@ -991,40 +1011,46 @@ $('div.loadmore-button').on('click', function(e) {
 // We may or may not have known that the event was related to the user already.
 // We may or may not have fetched information about the question.
 function handlePotentialUserAction(entry, is_watch) {
-    //console.log('handlePotentialUserAction for entry', entry.args.user, entry, is_watch);
+    //console.log('handlePotentialUserAction for entry', entry.returnValues.user, entry, is_watch);
 
     if ((entry['event'] == 'LogNewTemplate') || (entry['event'] == 'LogWithdraw')) {
+console.log('LogWithdraw or LogNewTemplate, ignoring');
         return;
     }
 
-    if (!entry || !entry.args || !entry.args['question_id'] || !entry.blockNumber) {
-        console.log('expected content not found in entry', !entry, !entry.args, !entry.args['question_id'], !entry.blockNumber, entry);
+    if (!entry || !entry.returnValues || !entry.returnValues['question_id'] || !entry.blockNumber) {
+        console.log('expected content not found in entry', !entry, !entry.returnValues, !entry.returnValues['question_id'], !entry.blockNumber, entry);
         return;
     }
 
     // This is the same for all events
-    var question_id = entry.args['question_id'];
+    var question_id = entry.returnValues['question_id'];
+console.log('considering quid ', question_id, 'blocknumber', entry.blockNumber, entry);
 
     // If this is the first time we learned that the user is involved with this question, we need to refetch all the other related logs
     // ...in case we lost one due to a race condition (ie we had already got the event before we discovered we needed it)
     // TODO: The filter could be tigher on the case where we already knew we had it, but we didn't know how soon the user was interested in it
     if ((!q_min_activity_blocks[question_id]) || (entry.blockNumber < q_min_activity_blocks[question_id])) {
+console.log('looking at entry', entry);
         // Event doesn't, in itself, have anything to show we are interested in it
         // NB we may be interested in it later if some other event shows that we should be interested in this question.
         if (!isForCurrentUser(entry)) {
-            // console.log('entry', entry.args['question_id'], 'not interesting to account', entry, account);
+             console.log('entry', entry.returnValues['question_id'], 'not interesting to account', entry, account);
             return;
         }
 
         q_min_activity_blocks[question_id] = entry.blockNumber;
 
+console.log('doing fetchUserEventsAndHandle');
         fetchUserEventsAndHandle({
             question_id: question_id
         }, START_BLOCK, 'latest');
 
         updateUserBalanceDisplay();
 
-    }
+    } else {
+console.log('skipped entry due to blocknumber stuff', entry);
+}
 
     var lastViewedBlockNumber = 0;
     if (getViewedBlockNumber(network_id)) {
@@ -1082,7 +1108,7 @@ function updateClaimableDisplay() {
     var claiming = mergePossibleClaimable(user_claimable, true);
     if (claiming.total.gt(0)) {
         var txids = claiming.txids;
-        $('.answer-claiming-container').find('.claimable-eth').text(web3js.fromWei(claiming.total.toNumber(), 'ether'));
+        $('.answer-claiming-container').find('.claimable-eth').text(weiBigNumberToEthString(claiming.total, 'ether'));
         var txid = txids.join(', '); // TODO: Handle multiple links properly
         $('.answer-claiming-container').find('a.txid').attr('href', block_explorer + '/tx/' + txid);
         $('.answer-claiming-container').find('a.txid').text(txid.substr(0, 12) + "...");
@@ -1091,10 +1117,11 @@ function updateClaimableDisplay() {
         $('.answer-claiming-container').fadeOut();
     }
 
-    rc.balanceOf.call(account).then(function(result) {
+    rc.methods.balanceOf(account).call().then(function(result_str) {
+		var result = new BigNumber(result_str);
         var ttl = result.plus(unclaimed.total);
         if (ttl.gt(0)) {
-            $('.answer-claim-button.claim-all').find('.claimable-eth').text(web3js.fromWei(ttl.toNumber(), 'ether'));
+            $('.answer-claim-button.claim-all').find('.claimable-eth').text(weiBigNumberToEthString(ttl, 'ether'));
             $('.answer-claim-button.claim-all').show();
         } else {
             $('.answer-claim-button.claim-all').fadeOut();
@@ -1157,7 +1184,7 @@ function scheduleFinalizationDisplayUpdate(question) {
         if (!is_done) {
             //console.log('scheduling');
             // Run 1 second after the finalization timestamp
-            var update_time = (1000 + (question[Qi_finalization_ts].toNumber() * 1000) - new Date().getTime());
+            var update_time = (1000 + (question[Qi_finalization_ts] * 1000) - new Date().getTime());
             //console.log('update_time is ', update_time);
             var timeout_id = setTimeout(function() {
                 // TODO: Call again here in case it changed and we missed it
@@ -1180,7 +1207,7 @@ function scheduleFinalizationDisplayUpdate(question) {
                             var fake_entry = {
                                     event: 'LogFinalize',
                                     blockNumber: result.number,
-                                    timestamp: question[Qi_finalization_ts].toNumber(),
+                                    timestamp: question[Qi_finalization_ts],
                                     args: {
                                         question_id: question[Qi_question_id],
                                     }
@@ -1219,9 +1246,9 @@ function _ensureAnswerRevealsFetched(question_id, freshness, start_block, questi
     var earliest_block = 0;
     var bond_indexes = {};
     for (var i=0; i<question['history'].length; i++) {
-        if (question['history'][i].args['is_commitment']) {
-            if (!question['history'][i].args['revealed_block']) {
-                var bond = question['history'][i].args['bond'].toString(16);
+        if (question['history'][i].returnValues['is_commitment']) {
+            if (!question['history'][i].returnValues['revealed_block']) {
+                var bond = question['history'][i].returnValues['bond'].toString(16);
                 console.log('_ensureAnswerRevealsFetched found commitment, block', earliest_block, 'bond', bond);
                 bond_indexes[bond] = i;
                 if (earliest_block == 0 || earliest_block > question['history'][i].blockNumber) {
@@ -1233,29 +1260,29 @@ function _ensureAnswerRevealsFetched(question_id, freshness, start_block, questi
     // console.log('earliest_block', earliest_block);
     if (earliest_block > 0) {
         return new Promise((resolve, reject)=>{
-            var reveal_logs = rc.LogAnswerReveal({question_id:question_id}, {fromBlock: earliest_block, toBlock:'latest'});
-            reveal_logs.get(function(error, answer_arr) {
-                if (error) {
-                    console.log('error in get reveal_logs');
-                    reject(error);
-                } else {
-                    console.log('got reveals');
-                    for(var j=0; j<answer_arr.length; j++) {
-                        var bond = answer_arr[j].args['bond'].toString(16);
-                        var idx = bond_indexes[bond];
-                        // console.log(question_id, bond.toString(16), 'update answer, before->after:', question['history'][idx].answer, answer_arr[j].args['answer']);
-                        question['history'][idx].args['revealed_block'] = answer_arr[j].blockNumber;
-                        question['history'][idx].args['answer'] = answer_arr[j].args['answer'];
 
-                        var commitment_id = rc_question.commitmentID(question_id, answer_arr[j].args['answer_hash'], bond);
-                        question['history'][idx].args['commitment_id'] = commitment_id;
-                        delete bond_indexes[bond];
-                    }
-                    question_detail_list[question_id] = question; // TODO : use filledQuestionDetail here? 
-                    //console.log('populated question, result is', question);
-                    //console.log('bond_indexes once done', bond_indexes);
-                    resolve(question);
-                }
+            rc.getPastEvents('LogAnswerReveal', {
+                filter: {question_id: question_id},
+                fromBlock: earliest_block,
+                toBlock: 'latest'
+            })
+            .then( function(answer_arr) {
+				console.log('got reveals');
+				for(var j=0; j<answer_arr.length; j++) {
+					var bond = answer_arr[j].returnValues['bond'].toString(16);
+					var idx = bond_indexes[bond];
+					// console.log(question_id, bond.toString(16), 'update answer, before->after:', question['history'][idx].answer, answer_arr[j].returnValues['answer']);
+					question['history'][idx].returnValues['revealed_block'] = answer_arr[j].blockNumber;
+					question['history'][idx].returnValues['answer'] = answer_arr[j].returnValues['answer'];
+
+					var commitment_id = rc_question.commitmentID(question_id, answer_arr[j].returnValues['answer_hash'], bond);
+					question['history'][idx].returnValues['commitment_id'] = commitment_id;
+					delete bond_indexes[bond];
+				}
+				question_detail_list[question_id] = question; // TODO : use filledQuestionDetail here? 
+				//console.log('populated question, result is', question);
+				//console.log('bond_indexes once done', bond_indexes);
+				resolve(question);
             });
         });
     } else {
@@ -1304,16 +1331,16 @@ function filledQuestionDetail(question_id, data_type, freshness, data) {
         case 'question_log':
             if (data && (freshness >= question.freshness.question_log)) {
                 question.freshness.question_log = freshness;
-                //question[Qi_question_id] = data.args['question_id'];
-                question[Qi_creation_ts] = data.args['created'];
-                question[Qi_question_creator] = data.args['user'];
+                //question[Qi_question_id] = data.returnValues['question_id'];
+                question[Qi_creation_ts] = data.returnValues['created'];
+                question[Qi_question_creator] = data.returnValues['user'];
                 question[Qi_question_created_block] = data.blockNumber;
-                question[Qi_content_hash] = data.args['content_hash'];
-                question[Qi_question_text] = data.args['question'];
-                question[Qi_template_id] = data.args['template_id'].toNumber();
+                question[Qi_content_hash] = data.returnValues['content_hash'];
+                question[Qi_question_text] = data.returnValues['question'];
+                question[Qi_template_id] = data.returnValues['template_id'];
                 question[Qi_block_mined] = data.blockNumber;
-                question[Qi_opening_ts] = data.args['opening_ts'];
-                //question[Qi_bounty] = data.args['bounty'];
+                question[Qi_opening_ts] = data.returnValues['opening_ts'];
+                //question[Qi_bounty] = data.returnValues['bounty'];
             }
             break;
 
@@ -1354,10 +1381,10 @@ function filledQuestionDetail(question_id, data_type, freshness, data) {
             }
             if (data.length && question['history_unconfirmed'].length) {
                 for (var j = 0; j < question['history_unconfirmed'].length; j++) {
-                    var ubond = question['history_unconfirmed'][j].args.bond;
+                    var ubond = new BigNumber(question['history_unconfirmed'][j].returnValues.bond);
                     for (var i = 0; i < question['history'].length; i++) {
                         // If there's something unconfirmed with an equal or lower bond, remove it
-                        if (data[i].args.bond.gte(ubond)) {
+                        if (new BigNumber(data[i].returnValues.bond).gte(ubond)) {
                             //console.log('removing unconfirmed entry due to higher bond from confirmed');
                             question['history_unconfirmed'].splice(j, 1);
                         }
@@ -1372,7 +1399,7 @@ function filledQuestionDetail(question_id, data_type, freshness, data) {
             for (var i = 0; i < question['history'].length; i++) {
                 //console.log('already have a higher bond, removing');
                 // If there's something confirmed with an equal or higher bond, ignore the unconfirmed one
-                if (question['history'][i].args.bond.gte(data.args.bond)) {
+                if (new BigNumber(question['history'][i].returnValues.bond).gte(new BigNumber(data.returnValues.bond))) {
                     break;
                 }
             }
@@ -1418,14 +1445,13 @@ function _ensureQuestionLogFetched(question_id, freshness) {
         if (isDataFreshEnough(question_id, 'question_log', freshness)) {
             resolve(question_detail_list[question_id]);
         } else {
-            var question_logs = rc.LogNewQuestion({
-                question_id: question_id
-            }, {
+            rc.getPastEvents('LogNewQuestion', {
+                filter: {question_id: question_id},
                 fromBlock: START_BLOCK,
                 toBlock: 'latest'
-            });
-            question_logs.get(function(error, question_arr) {
-                if (error || question_arr.length != 1) {
+            })
+            .then( function(question_arr) {
+                if (question_arr.length != 1) {
                     console.log('error in question log', error, question_arr, question_id, START_BLOCK);
                     reject(error);
                 } else {
@@ -1443,7 +1469,7 @@ function _ensureQuestionDataFetched(question_id, freshness) {
         if (isDataFreshEnough(question_id, 'question_call', freshness)) {
             resolve(question_detail_list[question_id]);
         } else {
-            rc.questions.call(question_id).then(function(result) {
+            rc.methods.questions(question_id).call().then(function(result) {
                 var question = filledQuestionDetail(question_id, 'question_call', called_block, result);
                 resolve(question);
             }).catch(function(err) {
@@ -1466,30 +1492,25 @@ function _ensureQuestionTemplateFetched(question_id, template_id, qtext, freshne
             } else {
                 // The category text should be in the log, but the contract has the block number
                 // This allows us to make a more efficient pin-point log call for the template content
-                rc.templates.call(template_id)
-                    .then(function(block_num) {
-                        var cat_logs = rc.LogNewTemplate({
-                            template_id: template_id
-                        }, {
-                            fromBlock: block_num,
-                            toBlock: block_num
-                        });
-                        cat_logs.get(function(error, cat_arr) {
-                            if (cat_arr.length == 1) {
-                                //console.log('adding template content', cat_arr, 'template_id', template_id);
-                                template_content[template_id] = cat_arr[0].args.question_text;
-                                //console.log(template_content);
-                                var question = filledQuestionDetail(question_id, 'question_json', 1, rc_question.populatedJSONForTemplate(template_content[template_id], qtext));
-                                resolve(question);
-                            } else {
-                                console.log('error fetching template - unexpected cat length');
-                                reject(new Error("Category response unexpected length"));
-                            }
-                        });
-                    }).catch(function(err) {
-                        console.log('error fetching template');
-                        reject(err);
-                    });
+                rc.methods.templates(template_id).call().then(function(block_num) {
+					rc.getPastEvents('LogNewTemplate', {
+						filter: {template_id: template_id},
+						fromBlock: block_num,
+						toBlock: block_num 
+					})
+					.then( function(cat_arr) {
+						if (cat_arr.length == 1) {
+							//console.log('adding template content', cat_arr, 'template_id', template_id);
+							template_content[template_id] = cat_arr[0].returnValues.question_text;
+							//console.log(template_content);
+							var question = filledQuestionDetail(question_id, 'question_json', 1, rc_question.populatedJSONForTemplate(template_content[template_id], qtext));
+							resolve(question);
+						} else {
+							console.log('error fetching template - unexpected cat length');
+							reject(new Error("Category response unexpected length"));
+						}
+                    })
+				})
             }
         }
     });
@@ -1502,44 +1523,38 @@ function _ensureAnswersFetched(question_id, freshness, start_block, injected_dat
             resolve(question_detail_list[question_id]);
         } else {
             //console.log('fetching answers from start_block', start_block);
-            var answer_logs = rc.LogNewAnswer({
-                question_id: question_id
-            }, {
+            rc.getPastEvents('LogNewAnswer', {
+                filter: {question_id: question_id},
                 fromBlock: start_block,
                 toBlock: 'latest'
-            });
-            answer_logs.get(function(error, answer_arr) {
-                if (error) {
-                    console.log('error in get');
-                    reject(error);
-                } else {
-                    // In theory this should get us everything but sometimes it seems to lag
-                    // If this is triggered by an event, and the get didn't return the event, add it to the list ourselves
-                    var done_txhashes = {};
-                    if (injected_data && injected_data['answers'] && injected_data['answers'].length) {
-                        var inj_ans_arr = injected_data['answers'];
-                        for (var i=0; i<inj_ans_arr.length; i++ ) {
-                            var inj_ans = inj_ans_arr[i];
-                            for (var j=0; j<answer_arr.length; j++ ) {
-                                var ans = answer_arr[j];
-                                if (ans.args.bond.equals(inj_ans.args.bond)) {
-                                    if (ans.transactionHash != inj_ans.transactionHash) {
-                                        // Replaced by a new entry, old one got orphaned
-                                        answer_arr[j] = inj_ans_arr[i];
-                                    }
+            })
+            .then( function(answer_arr) {
+                // In theory this should get us everything but sometimes it seems to lag
+                // If this is triggered by an event, and the get didn't return the event, add it to the list ourselves
+                var done_txhashes = {};
+                if (injected_data && injected_data['answers'] && injected_data['answers'].length) {
+                    var inj_ans_arr = injected_data['answers'];
+                    for (var i=0; i<inj_ans_arr.length; i++ ) {
+                        var inj_ans = inj_ans_arr[i];
+                        for (var j=0; j<answer_arr.length; j++ ) {
+                            var ans = answer_arr[j];
+                            if (ans.returnValues.bond.equals(inj_ans.returnValues.bond)) {
+                                if (ans.transactionHash != inj_ans.transactionHash) {
+                                    // Replaced by a new entry, old one got orphaned
+                                    answer_arr[j] = inj_ans_arr[i];
                                 }
-                                done_txhashes[answer_arr[j].transactionHash] = true;
                             }
-                            if (!done_txhashes[inj_ans.transactionHash]) {
-                                answer_arr.push(inj_ans);
-                            }
+                            done_txhashes[answer_arr[j].transactionHash] = true;
+                        }
+                        if (!done_txhashes[inj_ans.transactionHash]) {
+                            answer_arr.push(inj_ans);
                         }
                     }
-                    var question = filledQuestionDetail(question_id, 'answers', called_block, answer_arr);
-                    _ensureAnswerRevealsFetched(question_id, freshness, start_block, question).then(function(q){
-                        resolve(q);
-                    });
                 }
+                var question = filledQuestionDetail(question_id, 'answers', called_block, answer_arr);
+                _ensureAnswerRevealsFetched(question_id, freshness, start_block, question).then(function(q){
+                    resolve(q);
+                });
             });
         }
     });
@@ -1583,9 +1598,9 @@ function updateUserBalanceDisplay() {
     }
     // console.log('updating balacne for', account);
     web3js.eth.getBalance(account, function(error, result) {
-        // console.log('got updated balacne for', account, result.toNumber());
+        //console.log('got updated balacne for', account, result);
         if (error === null) {
-            $('.account-balance').text(web3js.fromWei(result.toNumber(), 'ether'));
+            $('.account-balance').text(weiBigNumberToEthString(result, 'ether'));
         }
     });
 }
@@ -1660,7 +1675,7 @@ function populateSection(section_name, question_data, before_item) {
     if (question_data[Qi_timeout] < 86400) {
         balloon_html += 'The timeout is very low.<br /><br />This means there may not be enough time for people to correct mistakes or lies.<br /><br />';
     }
-    if (web3js.fromWei(question_data[Qi_bounty], 'ether') < 0.01) {
+    if (weiBigNumberToEthString(question_data[Qi_bounty], 'ether') < 0.01) {
         balloon_html += 'The reward is very low.<br /><br />This means there may not be enough incentive to enter the correct answer and back it up with a bond.<br /><br />';
     }
     let arbitrator_addrs = $('#arbitrator').children();
@@ -1685,12 +1700,13 @@ function updateSectionEntryDisplay(question) {
 
 function populateSectionEntry(entry, question_data) {
 
+console.log('in populateSectionEntry', question_data);
     var question_id = question_data[Qi_question_id];
     var question_json = question_data[Qi_question_json];
     var posted_ts = question_data[Qi_creation_ts];
     var arbitrator = question_data[Qi_arbitrator];
     var timeout = question_data[Qi_timeout];
-    var bounty = web3js.fromWei(question_data[Qi_bounty], 'ether');
+    var bounty = weiBigNumberToEthString(question_data[Qi_bounty], 'ether');
     var is_arbitration_pending = isArbitrationPending(question_data);
     var is_finalized = isFinalized(question_data);
     var best_answer = question_data[Qi_best_answer];
@@ -1769,9 +1785,9 @@ function depopulateSection(section_name, question_id) {
 }
 
 function handleQuestionLog(item) {
-    var question_id = item.args.question_id;
-    //console.log('in handleQuestionLog', question_id);
-    var created = item.args.created
+    var question_id = item.returnValues.question_id;
+    //console.log('in handleQuestionLog', question_id, item);
+    var created = item.returnValues.created
 
     // Populate with the data we got
     //console.log('before filling in handleQuestionLog', question_detail_list[question_id]);
@@ -1794,7 +1810,7 @@ function handleQuestionLog(item) {
         var bounty = question_data[Qi_bounty];
 
         if (is_finalized) {
-            var insert_before = update_ranking_data('questions-resolved', question_id, question_data[Qi_finalization_ts], 'desc');
+            var insert_before = update_ranking_data('questions-resolved', question_id, new BigNumber(question_data[Qi_finalization_ts]), 'desc');
             if (insert_before !== -1) {
                 // TODO: If we include this we have to handle the history too
                 populateSection('questions-resolved', question_data, insert_before);
@@ -1805,7 +1821,7 @@ function handleQuestionLog(item) {
             }
 
         } else {
-            var insert_before = update_ranking_data('questions-latest', question_id, created, 'desc');
+            var insert_before = update_ranking_data('questions-latest', question_id, new BigNumber(created), 'desc');
             if (insert_before !== -1) {
                 populateSection('questions-latest', question_data, insert_before);
                 $('#questions-latest').find('.scanning-questions-category').css('display', 'none');
@@ -1814,7 +1830,7 @@ function handleQuestionLog(item) {
                 }
             }
 
-            var insert_before = update_ranking_data('questions-high-reward', question_id, bounty, 'desc');
+            var insert_before = update_ranking_data('questions-high-reward', question_id, new BigNumber(bounty), 'desc');
             if (insert_before !== -1) {
                 populateSection('questions-high-reward', question_data, insert_before);
                 $('#questions-high-reward').find('.scanning-questions-category').css('display', 'none');
@@ -1824,7 +1840,7 @@ function handleQuestionLog(item) {
             }
 
             if (isAnswered(question_data)) {
-                var insert_before = update_ranking_data('questions-closing-soon', question_id, question_data[Qi_finalization_ts], 'asc');
+                var insert_before = update_ranking_data('questions-closing-soon', question_id, new BigNumber(question_data[Qi_finalization_ts]), 'asc');
                 if (insert_before !== -1) {
                     populateSection('questions-closing-soon', question_data, insert_before);
                     $('#questions-closing-soon').find('.scanning-questions-category').css('display', 'none');
@@ -2078,13 +2094,13 @@ function populateQuestionWindow(rcqa, question_detail, is_refresh) {
     rcqa.find('.question-title').text(question_json['title']).expander({
         slicePoint: 200
     });
-    rcqa.find('.reward-value').text(web3js.fromWei(question_detail[Qi_bounty], 'ether'));
+    rcqa.find('.reward-value').text(weiBigNumberToEthString(question_detail[Qi_bounty], 'ether'));
 
     if (question_detail[Qi_block_mined] > 0) {
         rcqa.removeClass('unconfirmed-transaction').removeClass('has-warnings');
     }
 
-    var bond = new BigNumber(web3js.toWei(0.0001, 'ether'));
+    var bond = new BigNumber(ethStringToWeiBigNumber(0.0001, 'ether'));
     if (isAnswerActivityStarted(question_detail)) {
 
         var current_container = rcqa.find('.current-answer-container');
@@ -2117,13 +2133,13 @@ function populateQuestionWindow(rcqa, question_detail, is_refresh) {
                 } else {
                     ans_data.removeClass('current-account');
                 }
-                ans_data.find('.answer-bond-value').text(web3js.fromWei(current_answer.bond.toNumber(), 'ether'));
+                ans_data.find('.answer-bond-value').text(weiBigNumberToEthString(current_answer.bond, 'ether'));
             }
 
-            var last_ans = question_detail['history'][idx].args;
+            var last_ans = question_detail['history'][idx].returnValues;
             var unrevealed_answer_container = rcqa.find('.unrevealed-top-answer-container');
             if (last_ans.is_commitment && !last_ans.revealed_block) {
-                unrevealed_answer_container.find('.answer-bond-value').text(web3js.fromWei(last_ans.bond.toNumber(), 'ether'));
+                unrevealed_answer_container.find('.answer-bond-value').text(weiBigNumberToEthString(last_ans.bond, 'ether'));
                 unrevealed_answer_container.find('.reveal-time.timeago').attr('datetime', rc_question.convertTsToString(commitExpiryTS(question_detail, last_ans['ts'])));
                 timeAgo.render(unrevealed_answer_container.find('.reveal-time.timeago'));
                 unrevealed_answer_container.find('.answerer').text(last_ans['user']);
@@ -2139,8 +2155,8 @@ function populateQuestionWindow(rcqa, question_detail, is_refresh) {
 
             // TODO: Do duplicate checks and ensure order in case stuff comes in weird
             for (var i = 0; i < idx; i++) {
-                var ans = question_detail['history'][i].args;
-                var hist_id = 'question-window-history-item-' + web3js.sha3(question_id + ans.answer + ans.bond.toString());
+                var ans = question_detail['history'][i].returnValues;
+                var hist_id = 'question-window-history-item-' + web3js.utils.keccak256(question_id + ans.answer + ans.bond.toString());
                 if (rcqa.find('#' + hist_id).length) {
                     //console.log('already in list, skipping', hist_id, ans);
                     continue;
@@ -2158,7 +2174,7 @@ function populateQuestionWindow(rcqa, question_detail, is_refresh) {
 console.log(ans);
                 if (ans.is_commitment && !ans.revealed_block) {
                     console.log('got a commitmet');
-                    if (isCommitExpired(question_detail, ans['ts'].toNumber())) {
+                    if (isCommitExpired(question_detail, ans['ts'])) {
                         hist_item.find('.current-answer').text('Reveal timed out');
                         hist_item.addClass('expired-commit');
                     } else {
@@ -2170,7 +2186,7 @@ console.log(ans);
                     hist_item.removeClass('unrevealed-commit');
                 }
 
-                hist_item.find('.answer-bond-value').text(web3js.fromWei(ans.bond.toNumber(), 'ether'));
+                hist_item.find('.answer-bond-value').text(weiBigNumberToEthString(ans.bond, 'ether'));
                 hist_item.find('.answer-time.timeago').attr('datetime', rc_question.convertTsToString(ans['ts']));
                 timeAgo.render(hist_item.find('.answer-time.timeago'));
                 hist_item.removeClass('template-item');
@@ -2180,7 +2196,7 @@ console.log(ans);
         }
     }
 
-    rcqa.find('.bond-value').text(web3js.fromWei(question_detail[Qi_bond], 'ether'));
+    rcqa.find('.bond-value').text(weiBigNumberToEthString(question_detail[Qi_bond], 'ether'));
     // Set the dispute value on a slight delay
     // This ensures the latest entry was updated and the user had time to see it when arbitration was requested
     window.setTimeout(function() {
@@ -2192,7 +2208,7 @@ console.log(ans);
     if (question_detail[Qi_timeout] < 86400) {
         balloon_html += 'The timeout is very low.<br /><br />This means there may not be enough time for people to correct mistakes or lies.<br /><br />';
     }
-    if (web3js.fromWei(question_detail[Qi_bounty], 'ether') < 0.01) {
+    if (weiBigNumberToEthString(question_detail[Qi_bounty], 'ether') < 0.01) {
         balloon_html += 'The reward is very low.<br /><br />This means there may not be enough incentive to enter the correct answer and back it up with a bond.<br /><br />';
     }
     let valid_arbirator = isArbitratorValid(question_detail[Qi_arbitrator]);
@@ -2209,8 +2225,8 @@ console.log(ans);
     let questioner = question_detail[Qi_question_creator]
     let timeout = question_detail[Qi_timeout];
     var balloon = rcqa.find('.question-setting-info').find('.balloon')
-    balloon.find('.setting-info-bounty').text(web3js.fromWei(question_detail[Qi_bounty], 'ether'));
-    balloon.find('.setting-info-bond').text(web3js.fromWei(question_detail[Qi_bond], 'ether'));
+    balloon.find('.setting-info-bounty').text(weiBigNumberToEthString(question_detail[Qi_bounty], 'ether'));
+    balloon.find('.setting-info-bond').text(weiBigNumberToEthString(question_detail[Qi_bond], 'ether'));
     balloon.find('.setting-info-timeout').text(rc_question.secondsTodHms(question_detail[Qi_timeout]));
     balloon.find('.setting-info-content-hash').text(question_detail[Qi_content_hash]);
     balloon.find('.setting-info-question-id').text(question_detail[Qi_question_id]);
@@ -2221,7 +2237,7 @@ console.log(ans);
     var unconfirmed_container = rcqa.find('.unconfirmed-answer-container');
     if (question_detail['history_unconfirmed'].length) {
 
-        var unconfirmed_answer = question_detail['history_unconfirmed'][question_detail['history_unconfirmed'].length - 1].args;
+        var unconfirmed_answer = question_detail['history_unconfirmed'][question_detail['history_unconfirmed'].length - 1].returnValues;
 
         var txid = question_detail['history_unconfirmed'][question_detail['history_unconfirmed'].length - 1].txid;
         unconfirmed_container.find('.pending-answer-txid a').attr('href', block_explorer + '/tx/' + txid);
@@ -2242,7 +2258,7 @@ console.log(ans);
         } else {
             ans_data.removeClass('unconfirmed-account');
         }
-        ans_data.find('.answer-bond-value').text(web3js.fromWei(unconfirmed_answer.bond.toNumber(), 'ether'));
+        ans_data.find('.answer-bond-value').text(weiBigNumberToEthString(unconfirmed_answer.bond, 'ether'));
 
         // label for show the unconfirmed answer.
         var label = rc_question.getAnswerString(question_json, unconfirmed_answer.answer);
@@ -2258,17 +2274,16 @@ console.log(ans);
 
     // Arbitrator
     if (!isArbitrationPending(question_detail) && !isFinalized(question_detail)) {
-        Arbitrator.at(question_detail[Qi_arbitrator]).then(function(arb) {
-            return arb.getDisputeFee.call(question_id);
-        }).then(function(fee) {
+        var arb = new web3ws.eth.Contract(arb_json['abi'], question_detail[Qi_arbitrator]);
+        arb.methods.getDisputeFee(question_id).call().then(function(fee) {
             //rcqa.find('.arbitrator').text(question_detail[Qi_arbitrator]);
-            rcqa.find('.arbitration-fee').text(web3js.fromWei(fee.toNumber(), 'ether'));
+            rcqa.find('.arbitration-fee').text(weiBigNumberToEthString(new BigNumber(fee), 'ether'));
         });
     }
 
     if (!is_refresh) {
         // answer form
-        var ans_frm = makeSelectAnswerInput(question_json, question_detail[Qi_opening_ts].toNumber());
+        var ans_frm = makeSelectAnswerInput(question_json, question_detail[Qi_opening_ts]);
         ans_frm.addClass('is-open');
         ans_frm.removeClass('template-item');
         rcqa.find('.answered-history-container').after(ans_frm);
@@ -2277,7 +2292,7 @@ console.log(ans);
     // If the user has edited the field, never repopulate it underneath them
     var bond_field = rcqa.find('.rcbrowser-input--number--bond.form-item');
     if (!bond_field.hasClass('edited')) {
-        bond_field.val(web3js.fromWei(bond.toNumber(), 'ether') * 2);
+        bond_field.val(weiBigNumberToEthString(new BigNumber(bond), 'ether') * 2);
     }
 
     //console.log('call updateQuestionState');
@@ -2285,11 +2300,11 @@ console.log(ans);
 
     if (isFinalized(question_detail)) {
         var tot = totalClaimable(question_detail);
-        if (tot.toNumber() == 0) {
+        if (tot.equals(0)) {
             rcqa.removeClass('is-claimable');
         } else {
             rcqa.addClass('is-claimable');
-            rcqa.find('.answer-claim-button .claimable-eth').text(web3js.fromWei(tot.toNumber(), 'ether'));
+            rcqa.find('.answer-claim-button .claimable-eth').text(weiBigNumberToEthString(tot, 'ether'));
         }
     } else {
         rcqa.removeClass('is-claimable');
@@ -2350,14 +2365,14 @@ function possibleClaimableItems(question_detail) {
 
         var answer;
         // Only set on reveal, otherwise the answer field still holds the commitment ID for commitments
-        if (question_detail['history'][i].args.commitment_id) { 
-            answer = question_detail['history'][i].args.commitment_id;
+        if (question_detail['history'][i].returnValues.commitment_id) { 
+            answer = question_detail['history'][i].returnValues.commitment_id;
         } else {
-            answer = question_detail['history'][i].args.answer;
+            answer = question_detail['history'][i].returnValues.answer;
         }
-        var answerer = question_detail['history'][i].args.user;
-        var bond = question_detail['history'][i].args.bond;
-        var history_hash = question_detail['history'][i].args.history_hash;
+        var answerer = question_detail['history'][i].returnValues.user;
+        var bond = question_detail['history'][i].returnValues.bond;
+        var history_hash = question_detail['history'][i].returnValues.history_hash;
 
         if (is_yours) {
             // Somebody takes over your answer
@@ -2490,9 +2505,9 @@ function answersByMaxBond(answer_logs) {
     var ans = {};
     for (var i = 0; i < answer_logs.length; i++) {
         var an = answer_logs[i];
-        var aval = an.args.answer;
-        var bond = an.args.bond;
-        if (ans[aval] && ans[aval].args.bond >= bond) {
+        var aval = an.returnValues.answer;
+        var bond = an.returnValues.bond;
+        if (ans[aval] && ans[aval].returnValues.bond >= bond) {
             continue;
         }
         ans[aval] = an;
@@ -2570,102 +2585,104 @@ function renderNotifications(qdata, entry) {
     var evt = entry['event']
     switch (evt) {
         case 'LogNewQuestion':
-            var notification_id = web3js.sha3('LogNewQuestion' + entry.args.question_text + entry.args.arbitrator + entry.args.timeout.toString());
+            var notification_id = web3js.utils.keccak256('LogNewQuestion' + entry.returnValues.question_text + entry.returnValues.arbitrator + entry.returnValues.timeout.toString());
             ntext = 'You asked a question - "' + question_json['title'] + '"';
-            insertNotificationItem(evt, notification_id, ntext, entry.blockNumber, entry.args.question_id, true);
+            insertNotificationItem(evt, notification_id, ntext, entry.blockNumber, entry.returnValues.question_id, true);
             break;
 
         case 'LogNewAnswer':
             var is_positive = true;
-            var notification_id = web3js.sha3('LogNewAnswer' + entry.args.question_id + entry.args.user + entry.args.bond.toString());
-            if (entry.args.user == account) {
-                if (entry.args.is_commitment) {
+            var notification_id = web3js.utils.keccak256('LogNewAnswer' + entry.returnValues.question_id + entry.returnValues.user + entry.returnValues.bond.toString());
+            if (entry.returnValues.user == account) {
+                if (entry.returnValues.is_commitment) {
                     ntext = 'You committed to answering a question - "' + question_json['title'] + '"';
                 } else {
                     ntext = 'You answered a question - "' + question_json['title'] + '"';
                 }
-                insertNotificationItem(evt, notification_id, ntext, entry.blockNumber, entry.args.question_id, true);
+                insertNotificationItem(evt, notification_id, ntext, entry.blockNumber, entry.returnValues.question_id, true);
             } else {
-                var answered_question = rc.LogNewQuestion({
-                    question_id: question_id
-                }, {
-                    fromBlock: START_BLOCK,
-                    toBlock: 'latest'
-                });
-                answered_question.get(function(error, result2) {
-                    if (error === null && typeof result2 !== 'undefined') {
-                        if (result2[0].args.user == account) {
-                            ntext = 'Someone answered your question';
-                        } else if (qdata['history'][qdata['history'].length - 2].args.user == account) {
-                            is_positive = false;
-                            ntext = 'Your answer was overwritten';
-                        }
-                        if (typeof ntext !== 'undefined') {
-                            ntext += ' - "' + question_json['title'] + '"';
-                            insertNotificationItem(evt, notification_id, ntext, entry.blockNumber, entry.args.question_id, is_positive);
-                        }
-                    }
-                });
-            }
+				rc.getPastEvents('LogNewAnswer', {
+					filter: {question_id: question_id},
+					fromBlock: START_BLOCK,
+					toBlock: 'latest'
+				})
+				.then( function(answer_arr) {
+					rc.getPastEvents('LogNewQuestion', {
+						filter: {question_id: question_id},
+						fromBlock: START_BLOCK,
+						toBlock: 'latest'
+					})
+					.then( function(result2) { 
+						if (typeof result2 !== 'undefined') {
+							if (result2[0].returnValues.user == account) {
+								ntext = 'Someone answered your question';
+							} else if (qdata['history'][qdata['history'].length - 2].returnValues.user == account) {
+								is_positive = false;
+								ntext = 'Your answer was overwritten';
+							}
+							if (typeof ntext !== 'undefined') {
+								ntext += ' - "' + question_json['title'] + '"';
+								insertNotificationItem(evt, notification_id, ntext, entry.blockNumber, entry.returnValues.question_id, is_positive);
+							}
+						}
+					});
+				});
+			}
             break;
 
         case 'LogAnswerReveal':
             var is_positive = true;
-            var notification_id = web3.sha3('LogAnswerReveal' + entry.args.question_id + entry.args.user + entry.args.bond.toString());
-            if (entry.args.user == account) {
+            var notification_id = web3.sha3('LogAnswerReveal' + entry.returnValues.question_id + entry.returnValues.user + entry.returnValues.bond.toString());
+            if (entry.returnValues.user == account) {
                 ntext = 'You revealed an answer to a question - "' + question_json['title'] + '"';
-                insertNotificationItem(evt, notification_id, ntext, entry.blockNumber, entry.args.question_id, true);
+                insertNotificationItem(evt, notification_id, ntext, entry.blockNumber, entry.returnValues.question_id, true);
             } else {
-                var answered_question = rc.LogNewQuestion({question_id: question_id}, {
+				rc.getPastEvents('LogNewQuestion', {
+                    filter: {question_id: question_id},
                     fromBlock: START_BLOCK,
                     toBlock: 'latest'
-                });
-                answered_question.get(function (error, result2) {
-                    if (error === null && typeof result2 !== 'undefined') {
-                        if (result2[0].args.user == account) {
+				})
+                .then(function(result2) {
+                    if (typeof result2 !== 'undefined') {
+                        if (result2[0].returnValues.user == account) {
                             ntext = 'Someone revealed their answer to your question';
-                        } else if (qdata['history'][qdata['history'].length - 2].args.user == account) {
+                        } else if (qdata['history'][qdata['history'].length - 2].returnValues.user == account) {
                             is_positive = false;
                             ntext = 'Your answer was overwritten';
                         }
                         if (typeof ntext !== 'undefined') {
                             ntext += ' - "' + question_json['title'] + '"';
-                            insertNotificationItem(evt, notification_id, ntext, entry.blockNumber, entry.args.question_id, is_positive);
+                            insertNotificationItem(evt, notification_id, ntext, entry.blockNumber, entry.returnValues.question_id, is_positive);
                         }
                     }
                 });
             }
             break;
 
-
-
-
         case 'LogFundAnswerBounty':
-            var notification_id = web3js.sha3('LogFundAnswerBounty' + entry.args.question_id + entry.args.bounty.toString() + entry.args.bounty_added.toString() + entry.args.user);
-            if (entry.args.user == account) {
+            var notification_id = web3js.utils.keccak256('LogFundAnswerBounty' + entry.returnValues.question_id + entry.returnValues.bounty.toString() + entry.returnValues.bounty_added.toString() + entry.returnValues.user);
+            if (entry.returnValues.user == account) {
                 ntext = 'You added reward - "' + question_json['title'] + '"';
-                insertNotificationItem(evt, notification_id, ntext, entry.blockNumber, entry.args.question_id, true);
+                insertNotificationItem(evt, notification_id, ntext, entry.blockNumber, entry.returnValues.question_id, true);
             } else {
-                var funded_question = rc.LogNewQuestion({
-                    question_id: question_id
-                }, {
-                    fromBlock: START_BLOCK,
-                    toBlock: 'latest'
-                });
-                // TODO: Should this really always be index 0?
-                funded_question.get(function(error, result2) {
-                    if (error === null && typeof result2 !== 'undefined') {
-                        if (result2[0].args.user == account) {
+				rc.getPastEvents('LogNewQuestion', {
+					filter: {question_id: question_id},
+					fromBlock: START_BLOCK,
+					toBlock: 'latest'
+				})
+				.then( function(result2) {
+                    if (typeof result2 !== 'undefined') {
+                        if (result2[0].returnValues.user == account) {
                             ntext = 'Someone added reward to your question';
                         } else {
                             var prev_hist_idx = qdata['history'].length - 2;
-                            if ((prev_hist_idx >= 0) && (qdata['history'][prev_hist_idx].args.user == account)) {
+                            if ((prev_hist_idx >= 0) && (qdata['history'][prev_hist_idx].returnValues.user == account)) {
                                 ntext = 'Someone added reward to the question you answered';
                             }
                         }
                         if (typeof ntext !== 'undefined') {
                             ntext += ' - "' + question_json['title'] + '"';
-                            insertNotificationItem(evt, notification_id, ntext, entry.blockNumber, entry.args.question_id, true);
+                            insertNotificationItem(evt, notification_id, ntext, entry.blockNumber, entry.returnValues.question_id, true);
                         }
                     }
                 });
@@ -2673,25 +2690,24 @@ function renderNotifications(qdata, entry) {
             break;
 
         case 'LogNotifyOfArbitrationRequest':
-            var notification_id = web3js.sha3('LogNotifyOfArbitrationRequest' + entry.args.question_id);
+            var notification_id = web3js.utils.keccak256('LogNotifyOfArbitrationRequest' + entry.returnValues.question_id);
             var is_positive = true;
-            if (entry.args.user == account) {
+            if (entry.returnValues.user == account) {
                 ntext = 'You requested arbitration - "' + question_json['title'] + '"';
-                insertNotificationItem(evt, notification_id, ntext, entry.blockNumber, entry.args.question_id, true);
+                insertNotificationItem(evt, notification_id, ntext, entry.blockNumber, entry.returnValues.question_id, true);
             } else {
-                var arbitration_requested_question = rc.LogNewQuestion({
-                    question_id: question_id
-                }, {
-                    fromBlock: START_BLOCK,
-                    toBlock: 'latest'
-                });
-                arbitration_requested_question.get(function(error, result2) {
-                    if (error === null && typeof result2 !== 'undefined') {
+				rc.getPastEvents('LogNewQuestion', {
+					filter: {question_id: question_id},
+					fromBlock: START_BLOCK,
+					toBlock: 'latest'
+				}, function(events){ console.log(error, events); })
+				.then( function(result2) {
+                    if (typeof result2 !== 'undefined') {
                         var history_idx = qdata['history'].length - 2;
-                        if (result2[0].args.user == account) {
+                        if (result2[0].returnValues.user == account) {
                             ntext = 'Someone requested arbitration to your question';
                         } else {
-                            if ((history_idx >= 0) && (qdata['history'][history_idx].args.user == account)) {
+                            if ((history_idx >= 0) && (qdata['history'][history_idx].returnValues.user == account)) {
                                 ntext = 'Someone requested arbitration to the question you answered';
                                 is_positive = false;
                             } else {
@@ -2705,32 +2721,31 @@ function renderNotifications(qdata, entry) {
 
         case 'LogFinalize':
             //console.log('in LogFinalize', entry);
-            var notification_id = web3js.sha3('LogFinalize' + entry.args.question_id + entry.args.answer);
-            var finalized_question = rc.LogNewQuestion({
-                question_id: question_id
-            }, {
-                fromBlock: START_BLOCK,
-                toBlock: 'latest'
-            });
-            var timestamp = null;
+            var notification_id = web3js.utils.keccak256('LogFinalize' + entry.returnValues.question_id + entry.returnValues.answer);
+
+			var timestamp = null;
             // Fake timestamp for our fake finalize event
             if (entry.timestamp) {
                 timestamp = entry.timestamp;
             }
-            //console.log('getting question_id', question_id)
-            finalized_question.get(function(error, result2) {
-                //console.log('gotquestion_id', question_id)
-                if (error === null && typeof result2 !== 'undefined') {
-                    if (result2[0].args.user == account) {
+
+            rc.getPastEvents('LogNewQuestion', {
+                filter: {question_id: question_id},
+                fromBlock: START_BLOCK,
+                toBlock: 'latest'
+            })
+            .then( function(result2) {
+                if (typeof result2 !== 'undefined') {
+                    if (result2[0].returnValues.user == account) {
                         ntext = 'Your question is finalized';
-                    } else if (qdata['history'] && qdata['history'][qdata['history'].length - 2].args.user == account) {
+                    } else if (qdata['history'] && qdata['history'][qdata['history'].length - 2].returnValues.user == account) {
                         ntext = 'The question you answered is finalized';
                     } else {
                         ntext = 'A question was finalized';
                     }
                     if (typeof ntext !== 'undefined') {
                         ntext += ' - "' + question_json['title'] + '"';
-                        insertNotificationItem(evt, notification_id, ntext, entry.blockNumber, entry.args.question_id, true, timestamp);
+                        insertNotificationItem(evt, notification_id, ntext, entry.blockNumber, entry.returnValues.question_id, true, timestamp);
                     }
                 }
             });
@@ -2775,12 +2790,12 @@ function renderQAItemAnswer(question_id, answer_history, question_json, is_final
         if (answer_history.length > 0) {
             let user_answer;
             for (let i = answer_history.length - 1; i >= 0; i--) {
-                if (answer_history[i].args.user == account) {
-                    user_answer = answer_history[i].args.answer;
+                if (answer_history[i].returnValues.user == account) {
+                    user_answer = answer_history[i].returnValues.answer;
                     break;
                 }
             }
-            let latest_answer = answer_history[answer_history.length - 1].args.answer;
+            let latest_answer = answer_history[answer_history.length - 1].returnValues.answer;
             target.find('.latest-answer-text').text(rc_question.getAnswerString(question_json, latest_answer));
             if (typeof user_answer !== 'undefined') {
                 target.find('.user-answer-text').text(rc_question.getAnswerString(question_json, user_answer));
@@ -2950,12 +2965,12 @@ function updateQuestionState(question, question_window) {
 // Potentially resurrect it with a more efficient flow
 // Also potentially do it before confirmation (See issue #44)
 function pushWatchedAnswer(answer) {
-    var question_id = answer.args.question_id;
+    var question_id = answer.returnValues.question_id;
     var already_exists = false;
     var length = question_detail_list[question_id]['history'].length;
 
     for (var i = 0; i < length; i++) {
-        if (question_detail_list[question_id]['history'][i].args.answer == answer.args.answer) {
+        if (question_detail_list[question_id]['history'][i].returnValues.answer == answer.returnValues.answer) {
             already_exists = true;
             break;
         }
@@ -3022,7 +3037,7 @@ $(document).on('click', '.post-answer-button', function(e) {
     var bond = new BigNumber(0);
     var bond_field = parent_div.find('input[name="questionBond"]');
     try {
-        bond  = web3js.toWei(new BigNumber(bond_field.val()), 'ether');
+        bond  = ethStringToWeiBigNumber(new BigNumber(bond_field.val()), 'ether');
     } catch (err) {
         console.log('Could not parse bond field value');
     }
@@ -3112,7 +3127,7 @@ $(document).on('click', '.post-answer-button', function(e) {
             var min_amount = current_question[Qi_bond] * 2;
             if (bond.lt(min_amount)) {
                 parent_div.find('div.input-container.input-container--bond').addClass('is-error');
-                parent_div.find('div.input-container.input-container--bond').find('.min-amount').text(web3js.fromWei(min_amount, 'ether'));
+                parent_div.find('div.input-container.input-container--bond').find('.min-amount').text(weiBigNumberToEthString(min_amount, 'ether'));
                 is_err = true;
             }
 
@@ -3140,48 +3155,46 @@ $(document).on('click', '.post-answer-button', function(e) {
 
                 // TODO: We wait for the txid here, as this is not expected to be the main UI pathway.
                 // If USE_COMMIT_REVEAL becomes common, we should add a listener and do everything asychronously....
-                return rc.submitAnswerCommitment(question_id, answer_hash, current_question[Qi_bond], account, {from:account, gas:200000, value:bond}).then( function(txid) {
+                return rctx.methods.submitAnswerCommitment(question_id, answer_hash, current_question[Qi_bond], account).send({from:account, gas:200000, value:bond}).then( function(txid) {
                     console.log('got submitAnswerCommitment txid', txid);
-                    return rc.submitAnswerReveal.sendTransaction(question_id, answer_plaintext, nonce, bond, {from:account, gas:200000});
+                    return rctx.methods.submitAnswerReveal(question_id, answer_plaintext, nonce, bond).send({from:account, gas:200000});
                 });
             } else {
-                return rc.submitAnswer.sendTransaction(question_id, new_answer, current_question[Qi_bond], {
+                return rctx.methods.submitAnswer(question_id, new_answer, current_question[Qi_bond]).send({
                     from: account,
                     gas: 200000,
                     value: bond
-                });
+                }).on('transactionHash', function(txid) {
+					clearForm(parent_div, question_json);
+					var fake_history = {
+						'returnValues': {
+							'answer': new_answer,
+							'question_id': question_id,
+							'history_hash': null, // TODO Do we need this?
+							'user': account,
+							'bond': bond,
+							'ts': parseInt(new Date().getTime() / 1000),
+							'is_commitment': false
+						},
+						'event': 'LogNewAnswer',
+						'blockNumber': block_before_send,
+						'txid': txid
+					};
+
+					var question_data = filledQuestionDetail(question_id, 'answers_unconfirmed', block_before_send, fake_history);
+					//console.log('after answer made question_data', question_data);
+
+					ensureQuestionDetailFetched(question_id, 1, 1, block_before_send, block_before_send).then(function(question) {
+						updateQuestionWindowIfOpen(question);
+					}).catch(function() {
+						// Question may be unconfirmed, if so go with what we have
+						ensureQuestionDetailFetched(question_id, 0, 0, 0, -1).then(function(question) {
+							updateQuestionWindowIfOpen(question);
+						});
+					});
+				});
             }
-        }).then(function(txid) {
-            clearForm(parent_div, question_json);
-            var fake_history = {
-                'args': {
-                    'answer': new_answer,
-                    'question_id': question_id,
-                    'history_hash': null, // TODO Do we need this?
-                    'user': account,
-                    'bond': bond,
-                    'ts': new BigNumber(parseInt(new Date().getTime() / 1000)),
-                    'is_commitment': false
-                },
-                'event': 'LogNewAnswer',
-                'blockNumber': block_before_send,
-                'txid': txid
-            };
-
-            var question_data = filledQuestionDetail(question_id, 'answers_unconfirmed', block_before_send, fake_history);
-            //console.log('after answer made question_data', question_data);
-
-            ensureQuestionDetailFetched(question_id, 1, 1, block_before_send, block_before_send).then(function(question) {
-                updateQuestionWindowIfOpen(question);
-            }).catch(function() {
-                // Question may be unconfirmed, if so go with what we have
-                ensureQuestionDetailFetched(question_id, 0, 0, 0, -1).then(function(question) {
-                    updateQuestionWindowIfOpen(question);
-                });
-            });
-
-        });
-    /*
+        })    /*
     .catch(function(e){
         console.log(e);
     });
@@ -3249,7 +3262,7 @@ $(document).on('click', '.rcbrowser-submit.rcbrowser-submit--add-reward', functi
     var rcqa = $(this).closest('.rcbrowser--qa-detail');
     var question_id = rcqa.attr('data-question-id');
     var reward = $(this).parent('div').prev('div.input-container').find('input[name="question-reward"]').val();
-    reward = web3js.toWei(new BigNumber(reward), 'ether');
+    reward = ethStringToWeiBigNumber(new BigNumber(reward), 'ether');
 
     if (isNaN(reward) || reward <= 0) {
         $(this).parent('div').prev('div.input-container').addClass('is-error');
@@ -3290,12 +3303,9 @@ $(document).on('click', '.arbitration-button', function(e) {
 
     var arbitration_fee;
     //if (!question_detail[Qi_is_arbitration_due]) {}
-    var arbitrator;
-    Arbitrator.at(question_detail[Qi_arbitrator]).then(function(arb) {
-        arbitrator = arb;
-        return arb.getDisputeFee.call(question_id);
-    }).then(function(fee) {
-        arbitration_fee = fee;
+    var arbitrator = new web3ws.eth.Contract(arb_json['abi'], question_detail[Qi_arbitrator]);
+    arb.methods.getDisputeFee(question_id).call().then(function(fee) {
+        arbitration_fee = new BigNumber(fee);
         //console.log('got fee', arbitration_fee.toString());
         arbitrator.requestArbitration(question_id, new BigNumber(last_seen_bond_hex, 16), {from:account, value: arbitration_fee})
         .then(function(result){
@@ -3317,13 +3327,13 @@ function show_bond_payments(ctrl) {
         //console.log('new_answer', new_answer);
         //console.log('existing_answers', existing_answers);
         if (existing_answers[new_answer]) {
-            payable = existing_answers[new_answer].args.bond;
-            if (existing_answers[new_answer].args.user == account) {
+            payable = existing_answers[new_answer].returnValues.bond;
+            if (existing_answers[new_answer].returnValues.user == account) {
                 frm.addClass('has-your-answer').removeClass('has-someone-elses-answer');
-                frm.find('.answer-credit-info .answer-payment-value').text(web3js.fromWei(payable, 'ether'))
+                frm.find('.answer-credit-info .answer-payment-value').text(weiBigNumberToEthString(payable, 'ether'))
             } else {
                 frm.addClass('has-someone-elses-answer').removeClass('has-your-answer');
-                frm.find('.answer-debit-info .answer-payment-value').text(web3js.fromWei(payable, 'ether'))
+                frm.find('.answer-debit-info .answer-payment-value').text(weiBigNumberToEthString(payable, 'ether'))
             }
             frm.attr('data-answer-payment-value', payable.toString());
         } else {
@@ -3343,7 +3353,7 @@ $('.rcbrowser-textarea').on('keyup', function(e) {
     }
 });
 $(document).on('keyup', '.rcbrowser-input.rcbrowser-input--number', function(e) {
-    let value = new BigNumber(web3js.toWei($(this).val()));
+    let value = new BigNumber(ethStringToWeiBigNumber($(this).val()));
     //console.log($(this));
     if (value === '') {
         $(this).parent().parent().addClass('is-error');
@@ -3355,7 +3365,7 @@ $(document).on('keyup', '.rcbrowser-input.rcbrowser-input--number', function(e) 
         let current_idx = question_detail_list[question_id]['history'].length - 1;
         let current_bond = new BigNumber(0);
         if (current_idx >= 0) {
-            current_bond = question_detail_list[question_id]['history'][current_idx].args.bond;
+            current_bond = question_detail_list[question_id]['history'][current_idx].returnValues.bond;
         }
         if (value.lt(current_bond.times(2))) {
             $(this).parent().parent().addClass('is-error');
@@ -3449,7 +3459,7 @@ function updateRankingSections(question, changed_field, changed_val) {
                     depopulateSection(s, question_id);
                 }
             }
-            var insert_before = update_ranking_data('questions-resolved', question_id, question[Qi_finalization_ts], 'desc');
+            var insert_before = update_ranking_data('questions-resolved', question_id, new BigNumber(question[Qi_finalization_ts]), 'desc');
             //console.log('insert_before iss ', insert_before);
             if (insert_before !== -1) {
                 //console.log('poulating', question);
@@ -3458,7 +3468,7 @@ function updateRankingSections(question, changed_field, changed_val) {
             }
         } else {
             //console.log('updating closing soon with timestamp', question_id, question[Qi_finalization_ts].toString());
-            var insert_before = update_ranking_data('questions-closing-soon', question_id, question[Qi_finalization_ts], 'asc');
+            var insert_before = update_ranking_data('questions-closing-soon', question_id, new BigNumber(question[Qi_finalization_ts]), 'asc');
             //console.log('insert_before was', insert_before);
             if (insert_before !== -1) {
                 populateSection('questions-closing-soon', question, insert_before);
@@ -3468,7 +3478,7 @@ function updateRankingSections(question, changed_field, changed_val) {
 
     } 
     if (changed_field == Qi_bounty || changed_field == Qi_finalization_ts) {
-        var insert_before = update_ranking_data('questions-high-reward', question_id, question[Qi_bounty].plus(question[Qi_bond]), 'desc');
+        var insert_before = update_ranking_data('questions-high-reward', question_id, new BigNumber(question[Qi_bounty]).plus(new BigNumber(question[Qi_bond])), 'desc');
         //console.log('update for new bounty', question[Qi_bounty], 'insert_before is', insert_before);
         if (insert_before !== -1) {
             populateSection('questions-high-reward', question, insert_before);
@@ -3482,7 +3492,7 @@ function updateRankingSections(question, changed_field, changed_val) {
 }
 
 
-function handleEvent(error, result) {
+function handleEvent(result) {
 
     // Check the action to see if it is interesting, if it is then populate notifications etc
     handlePotentialUserAction(result, true);
@@ -3491,8 +3501,8 @@ function handleEvent(error, result) {
     // NB We need to reflect other changes too...
     var evt = result['event'];
     if (evt == 'LogNewTemplate') {
-        var template_id = result.args.template_id;
-        var question_text = result.args.question_text;
+        var template_id = result.returnValues.template_id;
+        var question_text = result.returnValues.question_text;
         template_content[template_id] = question_text;
         return;
     } else if (evt == 'LogNewQuestion') {
@@ -3500,16 +3510,16 @@ function handleEvent(error, result) {
     } else if (evt == 'LogWithdraw') {
         updateUserBalanceDisplay();
     } else {
-        var question_id = result.args.question_id;
+        var question_id = result.returnValues.question_id;
 
         switch (evt) {
 
             case ('LogNewAnswer'):
-                if (result.args.is_commitment) {
+                if (result.returnValues.is_commitment) {
                     console.log('got commitment', result);
-                    result.args.commitment_id = result.args.answer;
+                    result.returnValues.commitment_id = result.returnValues.answer;
                     // TODO: Get deadline
-                    result.args.answer = null;
+                    result.returnValues.answer = null;
                     // break;
                 }
 
@@ -3550,10 +3560,6 @@ function pageInit(account) {
 
     //console.log('in pageInit for account', account);
 
-    // Just used to get the default arbitator address
-    Arbitrator = contract(arb_json);
-    Arbitrator.setProvider(web3js.currentProvider);
-
     /*
         1) Start watching for all actions.
            This will include questions that the user answered or funded, which will update list of user question_ids.
@@ -3573,29 +3579,20 @@ function pageInit(account) {
 
     */
 
-    var RealityCheckRealitio = contract(rc_json);
-    RealityCheckRealitio.setProvider(new web3.providers.HttpProvider(RPC_NODES[network_id]));
-    console.log('using network', RPC_NODES[network_id]);
-    RealityCheckRealitio.deployed().then(function(instance) {
-        rcrealitio = instance;
-
-        var evts = rcrealitio.allEvents({}, {
+    rcrealitio = new web3ws.eth.Contract(rc_json['abi'], rc_json['networks'][network_id]['address']);
+    var evts = rcrealitio.events.allEvents(
+        {
             fromBlock: 'latest',
             toBlock: 'latest'
-        })
-
-        evts.watch(function(error, result) {
-            if (!error && result) {
-                console.log('got watch event', error, result);
-                // Give the node we're calling some time to catch up
-                window.setTimeout(
-                    function() {
-                        handleEvent(error, result);
-                    }, 5000
-                );
-            }
-        });
-
+        }, function(error, event){ console.log(event); }
+    ).on('data', function(result) {
+        console.log('got watch event', result);
+        // Give the node we're calling some time to catch up
+        window.setTimeout(
+            function() {
+                handleEvent(result);
+            }, 5000
+        );
     });
 
     fetchUserEventsAndHandle({
@@ -3637,8 +3634,8 @@ function fetchAndDisplayQuestions(end_block, fetch_i) {
             }
         }
 
-        scheduleFallbackTimer();
-        runPollingLoop(rc);
+        //EEscheduleFallbackTimer();
+        //EE runPollingLoop(rc);
 
         //setTimeout(bounceEffect, 500);
 
@@ -3648,13 +3645,12 @@ function fetchAndDisplayQuestions(end_block, fetch_i) {
     }
 
     //console.log('fetchAndDisplayQuestions', start_block, end_block, fetch_i);
-
-    var question_posted = rc.LogNewQuestion({}, {
-        fromBlock: start_block,
-        toBlock: end_block
-    });
-    question_posted.get(function(error, result) {
-        if (error === null && typeof result !== 'undefined') {
+	rc.getPastEvents('LogNewQuestion', {
+		fromBlock: start_block,
+		toBlock: end_block
+	})
+	.then( function(result) {
+        if (typeof result !== 'undefined') {
             for (var i = 0; i < result.length; i++) {
                 handlePotentialUserAction(result[i]);
                 handleQuestionLog(result[i]);
@@ -3671,7 +3667,7 @@ function fetchAndDisplayQuestions(end_block, fetch_i) {
 function runPollingLoop(contract_instance) {
 
     console.log('in runPollingLoop from ', last_polled_block);
-    var evts = contract_instance.allEvents({}, {
+    var evts = contract_instance.events.allEvents({}, {
         fromBlock: last_polled_block - 20, // account for lag
         toBlock: 'latest'
     })
@@ -3681,7 +3677,7 @@ function runPollingLoop(contract_instance) {
         last_polled_block = current_block_number;
         if (error === null && typeof result !== 'undefined') {
             for (var i = 0; i < result.length; i++) {
-                handleEvent(error, result[i]);
+                handleEvent(result[i]);
             }
         } else {
             console.log(error);
@@ -3712,93 +3708,88 @@ function scheduleFallbackTimer() {
 }
 
 function fetchUserEventsAndHandle(filter, start_block, end_block) {
-    //console.log('fetching for filter', filter);
-
-    var answer_posted = rc.LogNewAnswer(filter, {
-        fromBlock: start_block,
-        toBlock: end_block
-    })
-    answer_posted.get(function(error, result) {
+    console.log('in fetchUserEventsAndHandle, filter is', filter);
+	rc.getPastEvents('LogNewAnswer', {
+		filter: filter,
+		fromBlock: start_block,
+		toBlock: end_block
+	})
+	.then( function(result) {
         var answers = result;
-        if (error === null && typeof result !== 'undefined') {
+        if (typeof result !== 'undefined') {
+            for (var i = 0; i < answers.length; i++) {
+                console.log('handlePotentialUserAction', i, answers[i]);
+                handlePotentialUserAction(answers[i]);
+            }
+        } 
+    });
+
+return;
+	rc.getPastEvents('LogAnswerReveal', {
+		filter: filter,
+		fromBlock: start_block,
+		toBlock: end_block
+	})
+	.then( function(result) {
+        var answers = result;
+        if (typeof result !== 'undefined') {
             for (var i = 0; i < answers.length; i++) {
                 //console.log('handlePotentialUserAction', i, answers[i]);
                 handlePotentialUserAction(answers[i]);
             }
-        } else {
-            console.log(error);
-        }
+        } 
     });
 
-    var answer_revealed = rc.LogAnswerReveal(filter, {fromBlock: start_block, toBlock: end_block})
-    answer_revealed.get(function (error, result) {
-        var answers = result;
-        if (error === null && typeof result !== 'undefined') {
-            for (var i = 0; i < answers.length; i++) {
-                //console.log('handlePotentialUserAction', i, answers[i]);
-                handlePotentialUserAction(answers[i]);
-            }
-        } else {
-            console.log(error);
-        }
-    });
-
-    var bounty_funded = rc.LogFundAnswerBounty(filter, {
-        fromBlock: start_block,
-        toBlock: end_block
-    });
-    bounty_funded.get(function(error, result) {
-        if (error === null && typeof result !== 'undefined') {
+	rc.getPastEvents('LogFundAnswerBounty', {
+		filter: filter,
+		fromBlock: start_block,
+		toBlock: end_block
+	})
+	.then( function(result) {
+        if (typeof result !== 'undefined') {
             for (var i = 0; i < result.length; i++) {
                 handlePotentialUserAction(result[i]);
             }
-        } else {
-            console.log(error);
-        }
+        } 
     });
 
-    var arbitration_requested = rc.LogNotifyOfArbitrationRequest(filter, {
-        fromBlock: start_block,
-        toBlock: end_block
-    });
-    arbitration_requested.get(function(error, result) {
-        if (error === null && typeof result !== 'undefined') {
+	rc.getPastEvents('LogNotifyOfArbitrationRequest', {
+		filter: filter,
+		fromBlock: start_block,
+		toBlock: end_block
+	})
+	.then( function(result) {
+        if (typeof result !== 'undefined') {
             for (var i = 0; i < result.length; i++) {
                 handlePotentialUserAction(result[i]);
             }
-        } else {
-            console.log(error);
-        }
+        } 
     });
 
-    var finalized = rc.LogFinalize(filter, {
-        fromBlock: start_block,
-        toBlock: end_block
-    });
-    finalized.get(function(error, result) {
-        if (error === null && typeof result !== 'undefined') {
+	rc.getPastEvents('LogFinalize', {
+		filter: filter,
+		fromBlock: start_block,
+		toBlock: end_block
+	})
+	.then( function(result) {
+        if (typeof result !== 'undefined') {
             for (var i = 0; i < result.length; i++) {
                 handlePotentialUserAction(result[i]);
             }
-        } else {
-            console.log(error);
-        }
+        } 
     });
 
-    // Now the rest of the questions
-    var question_posted = rc.LogNewQuestion(filter, {
-        fromBlock: START_BLOCK,
-        toBlock: 'latest'
-    });
-    question_posted.get(function(error, result) {
-        if (error === null && typeof result !== 'undefined') {
+	rc.getPastEvents('LogNewQuestion', {
+		filter: filter,
+		fromBlock: start_block,
+		toBlock: 'latest' 
+	})
+	.then( function(result) {
+        if (typeof result !== 'undefined') {
             for (var i = 0; i < result.length; i++) {
                 handlePotentialUserAction(result[i]);
             }
-        } else {
-            console.log(error);
-        }
-
+        } 
     });
 
 }
@@ -3806,7 +3797,7 @@ function fetchUserEventsAndHandle(filter, start_block, end_block) {
 function isForCurrentUser(entry) {
     var actor_arg = 'user';
     if (actor_arg) {
-        return (entry.args[actor_arg] == account);
+        return (entry.returnValues[actor_arg] == account);
     } else {
         return false;
     }
@@ -3854,66 +3845,62 @@ function populateArbitratorSelect(network_arbs) {
         a_template.remove();
 
         is_first = false;
-        // Global RealityCheck setup is done in the getAccounts handler, do it here too to allow those to work in parallel for faster loading
-        const myr = contract(rc_json);
-        myr.setProvider(web3js.currentProvider);
 
-        const mya = contract(arb_json);
-        mya.setProvider(web3js.currentProvider);
-
-        myr.deployed().then(function(myri) {
-            $.each(network_arbs, function(na_addr, na_title) {
-                mya.at(na_addr).then(function(arb_inst) {
-                    return arb_inst.realitycheck.call();
-                }).then(function(rc_addr) {
-                    console.log('arb has rc addr', rc_addr);
-                    var is_arb_valid = (rc_addr == myr.address);
-                    verified_arbitrators[na_addr] = is_arb_valid;
-                    // For faster loading, we give arbitrators in our list the benefit of the doubt when rendering the page list arbitrator warning
-                    // For this we'll check our original list for the network, then just check against the failed list
-                    // TODO: Once loaded, we should really go back through the page and update anything failed
-                    if (!is_arb_valid) {
-                        failed_arbitrators[na_addr] = true;
-                    }
-                    console.log(verified_arbitrators);
-                    return is_arb_valid;
-                }).then(function(is_arb_valid) {
-                    if (is_arb_valid) {
-                        myri.arbitrator_question_fees.call(na_addr).then(function(fee) {
-                            var arb_item = a_template.clone().removeClass('arbitrator-template-item').addClass('arbitrator-option');
-                            arb_item.val(na_addr);
-                            var tos;
-                            if (arb_tos[na_addr]) {
-                                tos = arb_tos[na_addr];
-                            }
-                            populateArbitratorOptionLabel(arb_item, fee, na_title, tos);
-                            if (is_first) {
-                                arb_item.attr('selected', true);
-                                is_first = false;
-                            }
-                            append_before.before(arb_item);
-                        });
-                    } else {
-                        console.log('Arbitrator does not work for this contract:', na_addr);
-                    }
-                });
+        var myri = new web3ws.eth.Contract(rc_json['abi'], rc_json['networks'][network_id]['address']);
+        $.each(network_arbs, function(na_addr, na_title) {
+console.log('checking arb ', na_title, na_addr);
+            var arb_inst = new web3ws.eth.Contract(arb_json['abi'], na_addr);
+            arb_inst.methods.realitycheck().call().then(function(rc_addr) {
+                //console.log('arb has rc addr', rc_addr, 'checkign aginst', myri.options.address, myri);
+                var is_arb_valid = (rc_addr == myri.options.address);
+                verified_arbitrators[na_addr] = is_arb_valid;
+                // For faster loading, we give arbitrators in our list the benefit of the doubt when rendering the page list arbitrator warning
+                // For this we'll check our original list for the network, then just check against the failed list
+                // TODO: Once loaded, we should really go back through the page and update anything failed
+                if (!is_arb_valid) {
+                    failed_arbitrators[na_addr] = true;
+                }
+                //console.log(verified_arbitrators);
+                return is_arb_valid;
+            }).then(function(is_arb_valid) {
+                if (is_arb_valid) {
+                    myri.methods.arbitrator_question_fees(na_addr).call().then(function(fee_str) {
+						var fee = new BigNumber(fee_str);
+                        var arb_item = a_template.clone().removeClass('arbitrator-template-item').addClass('arbitrator-option');
+                        arb_item.val(na_addr);
+                        var tos;
+                        if (arb_tos[na_addr]) {
+                            tos = arb_tos[na_addr];
+                        }
+                        populateArbitratorOptionLabel(arb_item, fee, na_title, tos);
+                        if (is_first) {
+                            arb_item.attr('selected', true);
+                            is_first = false;
+                        }
+                        append_before.before(arb_item);
+                    });
+                } else {
+                    console.log('Arbitrator does not work for this contract:', na_addr);
+                }
             });
         });
     });
 }
 
 function validateArbitratorForContract(arb_addr) {
+console.log('doning validateArbitratorForContract');
     return new Promise((resolve, reject) => {
         if (verified_arbitrators[arb_addr]) {
+console.log('resolved veriarb');
             resolve(true);
         }
 
+console.log('getting arb');
         const mya = contract(arb_json);
-        mya.setProvider(web3js.currentProvider);
-        mya.at(arb_addr).then(function(myainst) {
-            myainst.realitycheck.call().then(function(rslt) {
-                resolve(arb_addr == rslt);
-            });
+        var myainst = new web3ws.eth.Contract(arb_json['abi'], arb_addr);
+        myainst.methods.realitycheck().call().then(function(rslt) {
+console.log('resolving arb', rslt);
+            resolve(arb_addr == rslt);
         });
     })
 }
@@ -3922,17 +3909,17 @@ function validateArbitratorForContract(arb_addr) {
 function humanReadableWei(amt) {
     var unit;
     var displ;
-    if (amt.gt(web3js.toWei(0.01, 'ether'))) {
+    if (amt.gt(ethStringToWeiBigNumber('0.01', 'ether'))) {
         unit = 'ether';
         displ = 'ETH';
-    } else if (amt.gt(web3js.toWei(0.01, 'gwei'))) {
+    } else if (amt.gt(ethStringToWeiBigNumber('0.01', 'gwei'))) {
         unit = 'gwei';
         displ = 'Gwei';
     } else {
         unit = 'wei';
         displ = 'Wei';
     }
-    return web3js.fromWei(amt, unit).toString() + ' ' + unit;
+    return weiBigNumberToEthString(amt, unit).toString() + ' ' + unit;
 }
 
 function initializeGlobalVariablesForNetwork(net_id) {
@@ -3950,93 +3937,99 @@ function initializeGlobalVariablesForNetwork(net_id) {
     }
 }
 
+function handleNewNetworkID(net_id, valid_ids) {
+
+	console.log('network id ', net_id);
+	if (valid_ids.indexOf(net_id + "") === -1) {
+		console.log('not found', net_id + "", valid_ids);
+		$('body').addClass('error-invalid-network').addClass('error');
+	} else {
+		initializeGlobalVariablesForNetwork(net_id);
+	}
+
+	web3ws = new Web3(WS_NODES[net_id]);
+
+	// Set up a filter so we always know the latest block number.
+	// This helps us keep track of how fresh our question data etc is.
+	console.log('subscribing to newBlockHeaders');
+	web3ws.eth.subscribe('newBlockHeaders', function(err, res) {
+		console.log('done subscribe');
+	}).on("data", function(blockHeader){
+		console.log('got new block ', blockHeader.number );
+		if (blockHeader.number > current_block_number) {
+			current_block_number = blockHeader.number;
+		}
+	}).on("error", function(err, res) {
+		console.log('error getting block', err, res);
+	});
+
+	web3js.eth.getAccounts((err, acc) => {
+		web3js.eth.getBlock('latest', function(err, result) {
+			if (result.number > current_block_number) {
+				current_block_number = result.number;
+			}
+
+			if (acc && acc.length > 0) {
+				//console.log('accounts', acc);
+				account = acc[0];
+				$('.account-balance-link').attr('href', block_explorer + '/address/' + account);
+			} else {
+				if (!is_web3_fallback) {
+					console.log('no accounts');
+					$('body').addClass('error-no-metamask-accounts').addClass('error');
+				}
+			}
+
+			var args = parseHash();
+			USE_COMMIT_REVEAL = (parseInt(args['commit']) == 1);
+			if (args['category']) {
+				category = args['category'];
+				$('body').addClass('category-' + category);
+				var cat_txt = $("#filter-list").find("[data-category='" + category + "']").text();
+				$('#filterby').text(cat_txt);
+			}
+			//console.log('args:', args);
+
+			rc = new web3ws.eth.Contract(rc_json['abi'], rc_json['networks'][network_id]['address']);
+			rctx = new web3js.eth.Contract(rc_json['abi'], rc_json['networks'][network_id]['address']);
+
+			updateUserBalanceDisplay();
+			pageInit(account);
+			if (args['question']) {
+				//console.log('fetching question');
+				ensureQuestionDetailFetched(args['question']).then(function(question) {
+					openQuestionWindow(question[Qi_question_id]);
+
+				})
+			}
+		});
+		populateArbitratorSelect(arbitrator_list[net_id]);
+	});
+}
+
 window.addEventListener('load', function() {
 
     let valid_ids = $('div.error-bar').find('span[data-network-id]').attr('data-network-id').split(',');
     var is_web3_fallback = false;
 
-    web3realitio = new Web3(new Web3.providers.HttpProvider("https://rc-dev-3.socialminds.jp"));
-
     if (typeof web3 === 'undefined') {
         var is_web3_fallback = true;
         // fallback - use your fallback strategy (local node / hosted node + in-dapp id mgmt / fail)
-        web3js = new Web3(new Web3.providers.HttpProvider(RPC_NODES[valid_ids[0]]));
+        web3js = new Web3(new Web3.providers.HttpProvider(WS_NODES[valid_ids[0]]));
         console.log('no web3js, using infura on network', valid_ids[0]);
         $('body').addClass('error-no-metamask-plugin').addClass('error');
+		// No metamask, use the default network
+		handleNewNetworkID(valid_ids[0], valid_ids);
     } else {
         // Use Mist/MetaMask's provider
-        console.log('got web3js, go ahead');
+        console.log('got web3js from mist/metamask, go ahead');
         web3js = new Web3(web3.currentProvider);
+		web3js.eth.net.getId().then(function(net_id) {
+			handleNewNetworkID(net_id, valid_ids);
+		});
+
     }
 
-    // Set up a filter so we always know the latest block number.
-    // This helps us keep track of how fresh our question data etc is.
-    web3js.eth.filter('latest').watch(function(err, res) {
-        web3js.eth.getBlock('latest', function(err, result) {
-            if (result.number > current_block_number) {
-                current_block_number = result.number;
-            }
-            // Should we do this?
-            // Potentially calls later but grows indefinitely...
-            // block_timestamp_cache[result.number] = result.timestamp;
-        })
-    });
-
-
-    web3js.version.getNetwork((err, net_id) => {
-        if (err === null) {
-            if (valid_ids.indexOf(net_id) === -1) {
-                $('body').addClass('error-invalid-network').addClass('error');
-            } else {
-                initializeGlobalVariablesForNetwork(net_id);
-            }
-        }
-
-        web3js.eth.getAccounts((err, acc) => {
-            web3js.eth.getBlock('latest', function(err, result) {
-                if (result.number > current_block_number) {
-                    current_block_number = result.number;
-                }
-
-                if (acc && acc.length > 0) {
-                    //console.log('accounts', acc);
-                    account = acc[0];
-                    $('.account-balance-link').attr('href', block_explorer + '/address/' + account);
-                } else {
-                    if (!is_web3_fallback) {
-                        console.log('no accounts');
-                        $('body').addClass('error-no-metamask-accounts').addClass('error');
-                    }
-                }
-
-                var args = parseHash();
-                USE_COMMIT_REVEAL = (parseInt(args['commit']) == 1);
-                if (args['category']) {
-                    category = args['category'];
-                    $('body').addClass('category-' + category);
-                    var cat_txt = $("#filter-list").find("[data-category='" + category + "']").text();
-                    $('#filterby').text(cat_txt);
-                }
-                //console.log('args:', args);
-
-                RealityCheck = contract(rc_json);
-                RealityCheck.setProvider(web3js.currentProvider);
-                RealityCheck.deployed().then(function(instance) {
-                    rc = instance;
-                    updateUserBalanceDisplay();
-                    pageInit(account);
-                    if (args['question']) {
-                        //console.log('fetching question');
-                        ensureQuestionDetailFetched(args['question']).then(function(question) {
-                            openQuestionWindow(question[Qi_question_id]);
-
-                        })
-                    }
-                });
-            });
-            populateArbitratorSelect(arbitrator_list[net_id]);
-        });
-    });
 
     // Notification bar(footer)
     if (window.localStorage.getItem('got-it') == null) {
