@@ -193,6 +193,8 @@ const monthList = [
     'Dec'
 ];
 
+var localeTextData = [];
+
 function rcbrowserHeight() {
     console.log('skipping auto rcbrowserHeight');
     return;
@@ -504,7 +506,7 @@ $('#post-a-question-button,.post-a-question-link').on('click', function(e) {
     $("select[name='question-category']").change(function(){
         $(this).addClass("selected");
 
-        var optionLabel = "Category: ";
+        var optionLabel = localeTextData['CategoryLabel'];
 
         $("option", this).each(function() {
             var option = $(this).text().split(optionLabel)[1];
@@ -518,7 +520,7 @@ $('#post-a-question-button,.post-a-question-link').on('click', function(e) {
     });
 
     $("select[name='question-type']").change(function(){
-        var optionLabel = "Question Type: ";
+        var optionLabel = localeTextData['QTypeLabel'];
 
         $("option", this).each(function() {
             var option = $(this).text().split(optionLabel)[1];
@@ -530,7 +532,7 @@ $('#post-a-question-button,.post-a-question-link').on('click', function(e) {
     });
 
     $("select[name='step-delay']").change(function(){
-        var optionLabel = "Countdown: ";
+        var optionLabel = localeTextData['CountDownLabel'];
 
         $("option", this).each(function() {
             var option = $(this).text().split(optionLabel)[1];
@@ -543,7 +545,7 @@ $('#post-a-question-button,.post-a-question-link').on('click', function(e) {
 
     $("select[name='arbitrator']").change(function(){
         $(this).addClass("selected");
-        var optionLabel = "Arbitrator: ";
+        var optionLabel = localeTextData['ArbitratorLabel'];
 
         $("option", this).each(function() {
             var option = $(this).text().split(optionLabel)[1];
@@ -1658,15 +1660,15 @@ function populateSection(section_name, question_data, before_item) {
     // question settings warning balloon
     let balloon_html = '';
     if (question_data[Qi_timeout] < 86400) {
-        balloon_html += 'The timeout is very low.<br /><br />This means there may not be enough time for people to correct mistakes or lies.<br /><br />';
+        balloon_html += localeTextData['BalloonTimeoutWarning'];
     }
     if (web3js.fromWei(question_data[Qi_bounty], 'ether') < 0.01) {
-        balloon_html += 'The reward is very low.<br /><br />This means there may not be enough incentive to enter the correct answer and back it up with a bond.<br /><br />';
+        balloon_html += localeTextData['BalloonLowRewardWarning'];
     }
     let arbitrator_addrs = $('#arbitrator').children();
     let valid_arbirator = isArbitratorValidFast(question_data[Qi_arbitrator]);
     if (!valid_arbirator) {
-        balloon_html += 'This arbitrator is unknown.';
+        balloon_html += localeTextData['BalloonUnknownArbitrator'];
     }
     if (balloon_html) {
         $('div[data-question-id=' + question_id + ']').find('.question-setting-warning').css('display', 'block');
@@ -1941,7 +1943,7 @@ function update_ranking_data(arr_name, id, val, ord) {
         var win = $(this).closest('.rcbrowser');
         var element = $('<div>');
         element.addClass('input-container input-container--answer-option');
-        var input = '<input type="text" name="editOption0" class="rcbrowser-input answer-option form-item" placeholder="Enter an answer...">';
+        var input = '<input type="text" name="editOption0" class="rcbrowser-input answer-option form-item" placeholder="' + localeTextData['PlaceHolderEnterAnswer'] + '">';
         element.append(input);
         win.find('.error-container--answer-option').before(element);
         element.addClass('is-bounce');
@@ -2190,15 +2192,15 @@ console.log(ans);
     // question settings warning balloon
     let balloon_html = '';
     if (question_detail[Qi_timeout] < 86400) {
-        balloon_html += 'The timeout is very low.<br /><br />This means there may not be enough time for people to correct mistakes or lies.<br /><br />';
+        balloon_html += localeTextData['BalloonTimeoutWarning'];
     }
     if (web3js.fromWei(question_detail[Qi_bounty], 'ether') < 0.01) {
-        balloon_html += 'The reward is very low.<br /><br />This means there may not be enough incentive to enter the correct answer and back it up with a bond.<br /><br />';
+        balloon_html += localeTextData['BalloonLowRewardWarning'];
     }
     let valid_arbirator = isArbitratorValid(question_detail[Qi_arbitrator]);
 
     if (!valid_arbirator) {
-        balloon_html += 'We do not recognize this arbitrator.<br />Do not believe this information unless you trust them.';
+        balloon_html += localeTextData['BalloonArbitratorWarning'];
     }
     if (balloon_html) {
         rcqa.find('.question-setting-warning').css('display', 'block');
@@ -2571,7 +2573,7 @@ function renderNotifications(qdata, entry) {
     switch (evt) {
         case 'LogNewQuestion':
             var notification_id = web3js.sha3('LogNewQuestion' + entry.args.question_text + entry.args.arbitrator + entry.args.timeout.toString());
-            ntext = 'You asked a question - "' + question_json['title'] + '"';
+            ntext = localeTextData['YourQuestion'] + '"' + question_json['title'] + '"';
             insertNotificationItem(evt, notification_id, ntext, entry.blockNumber, entry.args.question_id, true);
             break;
 
@@ -2580,9 +2582,9 @@ function renderNotifications(qdata, entry) {
             var notification_id = web3js.sha3('LogNewAnswer' + entry.args.question_id + entry.args.user + entry.args.bond.toString());
             if (entry.args.user == account) {
                 if (entry.args.is_commitment) {
-                    ntext = 'You committed to answering a question - "' + question_json['title'] + '"';
+                    ntext = localeTextData['YourCommittedAnswer'] + '"' + question_json['title'] + '"';
                 } else {
-                    ntext = 'You answered a question - "' + question_json['title'] + '"';
+                    ntext = localeTextData['YourAnswer'] + '"' + question_json['title'] + '"';
                 }
                 insertNotificationItem(evt, notification_id, ntext, entry.blockNumber, entry.args.question_id, true);
             } else {
@@ -2595,10 +2597,10 @@ function renderNotifications(qdata, entry) {
                 answered_question.get(function(error, result2) {
                     if (error === null && typeof result2 !== 'undefined') {
                         if (result2[0].args.user == account) {
-                            ntext = 'Someone answered your question';
+                            ntext = localeTextData['YourQuestionAnswered'];
                         } else if (qdata['history'][qdata['history'].length - 2].args.user == account) {
                             is_positive = false;
-                            ntext = 'Your answer was overwritten';
+                            ntext = localeTextData['YourAnswerOverwritten'];
                         }
                         if (typeof ntext !== 'undefined') {
                             ntext += ' - "' + question_json['title'] + '"';
@@ -2613,7 +2615,7 @@ function renderNotifications(qdata, entry) {
             var is_positive = true;
             var notification_id = web3.sha3('LogAnswerReveal' + entry.args.question_id + entry.args.user + entry.args.bond.toString());
             if (entry.args.user == account) {
-                ntext = 'You revealed an answer to a question - "' + question_json['title'] + '"';
+                ntext = localeTextData['YourRevealedAnswer'] + '"' + question_json['title'] + '"';
                 insertNotificationItem(evt, notification_id, ntext, entry.blockNumber, entry.args.question_id, true);
             } else {
                 var answered_question = rc.LogNewQuestion({question_id: question_id}, {
@@ -2623,10 +2625,10 @@ function renderNotifications(qdata, entry) {
                 answered_question.get(function (error, result2) {
                     if (error === null && typeof result2 !== 'undefined') {
                         if (result2[0].args.user == account) {
-                            ntext = 'Someone revealed their answer to your question';
+                            ntext = localeTextData['SomeonesRevealedAnswer'];
                         } else if (qdata['history'][qdata['history'].length - 2].args.user == account) {
                             is_positive = false;
-                            ntext = 'Your answer was overwritten';
+                            ntext = localeTextData['YourAnswerOverwritten'];
                         }
                         if (typeof ntext !== 'undefined') {
                             ntext += ' - "' + question_json['title'] + '"';
@@ -2643,7 +2645,7 @@ function renderNotifications(qdata, entry) {
         case 'LogFundAnswerBounty':
             var notification_id = web3js.sha3('LogFundAnswerBounty' + entry.args.question_id + entry.args.bounty.toString() + entry.args.bounty_added.toString() + entry.args.user);
             if (entry.args.user == account) {
-                ntext = 'You added reward - "' + question_json['title'] + '"';
+                ntext = localeTextData['YouAddedReward'] + '"' + question_json['title'] + '"';
                 insertNotificationItem(evt, notification_id, ntext, entry.blockNumber, entry.args.question_id, true);
             } else {
                 var funded_question = rc.LogNewQuestion({
@@ -2656,11 +2658,11 @@ function renderNotifications(qdata, entry) {
                 funded_question.get(function(error, result2) {
                     if (error === null && typeof result2 !== 'undefined') {
                         if (result2[0].args.user == account) {
-                            ntext = 'Someone added reward to your question';
+                            ntext = localeTextData['SomeoneAddedReward1'];
                         } else {
                             var prev_hist_idx = qdata['history'].length - 2;
                             if ((prev_hist_idx >= 0) && (qdata['history'][prev_hist_idx].args.user == account)) {
-                                ntext = 'Someone added reward to the question you answered';
+                                ntext = localeTextData['SomeoneAddedReward2'];
                             }
                         }
                         if (typeof ntext !== 'undefined') {
@@ -2676,7 +2678,7 @@ function renderNotifications(qdata, entry) {
             var notification_id = web3js.sha3('LogNotifyOfArbitrationRequest' + entry.args.question_id);
             var is_positive = true;
             if (entry.args.user == account) {
-                ntext = 'You requested arbitration - "' + question_json['title'] + '"';
+                ntext = localeTextData['YourArbitrationRequest'] + '"' + question_json['title'] + '"';
                 insertNotificationItem(evt, notification_id, ntext, entry.blockNumber, entry.args.question_id, true);
             } else {
                 var arbitration_requested_question = rc.LogNewQuestion({
@@ -2689,13 +2691,13 @@ function renderNotifications(qdata, entry) {
                     if (error === null && typeof result2 !== 'undefined') {
                         var history_idx = qdata['history'].length - 2;
                         if (result2[0].args.user == account) {
-                            ntext = 'Someone requested arbitration to your question';
+                            ntext = localeTextData['SomeonesArbitrationRequest1'];
                         } else {
                             if ((history_idx >= 0) && (qdata['history'][history_idx].args.user == account)) {
-                                ntext = 'Someone requested arbitration to the question you answered';
+                                ntext = localeTextData['SomeonesArbitrationRequest2'];
                                 is_positive = false;
                             } else {
-                                ntext = 'Someone requested arbitration to the question';
+                                ntext = localeTextData['SomeonesArbitrationRequest3'];
                             }
                         }
                     }
@@ -2722,11 +2724,11 @@ function renderNotifications(qdata, entry) {
                 //console.log('gotquestion_id', question_id)
                 if (error === null && typeof result2 !== 'undefined') {
                     if (result2[0].args.user == account) {
-                        ntext = 'Your question is finalized';
+                        ntext = localeTextData['QuestionFinalized1'];
                     } else if (qdata['history'] && qdata['history'][qdata['history'].length - 2].args.user == account) {
-                        ntext = 'The question you answered is finalized';
+                        ntext = localeTextData['QuestionFinalized2'];
                     } else {
-                        ntext = 'A question was finalized';
+                        ntext = localeTextData['QuestionFinalized3'];
                     }
                     if (typeof ntext !== 'undefined') {
                         ntext += ' - "' + question_json['title'] + '"';
@@ -4057,4 +4059,66 @@ window.addEventListener('load', function() {
     }
 
     //setTimeout(bounceEffect, 8000);
+
+    var localeTextJson = loadLocaleTextJson('ja_JP');
+    localeTextJson.then(function(data){
+        replaceLocaleString(data);
+    }).catch(function(error){
+        console.log('locale json load error', error);
+    });
 });
+
+
+function replaceLocaleString(localeData) {
+    localeTextData = JSON.parse(localeData);
+    $('.no-metamask-plugin').html(localeTextData['ErrorNoMetaMask']);
+    $('#see-document').html(localeTextData['HelpSeeDocument']);
+
+    $('.rcbrowser--qa-detail').find('.rcbrowser-submit--add-reward').val(localeTextData['AddReward']);
+
+    $('.answer-form-container').find('.input-container--bond').find('.error-container').html(localeTextData['ErrorTooLowBond']);
+    $('.answer-form-container').find('.input-container--bond').find('.answer-credit-info').html(localeTextData['AnswerCreditInfo']);
+    $('.answer-form-container').find('.input-container--bond').find('.answer-debit-info').html(localeTextData['AnswerDebitInfo']);
+
+    $('#your-question-answer-window').find('.different-latest-answer-container').html(localeTextData['PreviousAnswer']);
+
+    var locale_strings = $('.locale-text');
+    for (var i = 0; i < locale_strings.length; i++) {
+        if (locale_strings[i].getAttribute('data-locale-text')) {
+            var key = locale_strings[i].getAttribute('data-locale-text');
+            locale_strings[i].textContent = localeTextData[key];
+        }
+    }
+    locale_strings = $('[placeholder].locale-text');
+    for (var i = 0; i < locale_strings.length; i++) {
+        var name = locale_strings[i].getAttribute('name');
+        name = '[name="' + name + '"]';
+        key = $(name).attr('placeholder');
+        $(name).attr('placeholder', localeTextData[key]);
+    }
+}
+
+function loadLocaleTextJson(locale) {
+    if (locale == 'en_US') {
+        var url = 'language/en_US.json';
+    } else if (locale == 'ja_JP') {
+        url = 'language/ja_JP.json';
+    }
+
+    return new Promise(function(resolve, reject) {
+        var request = new XMLHttpRequest();
+        request.open('GET', url);
+        request.onload = function() {
+            if (request.status === 200) {
+                resolve(request.response);
+            } else {
+                reject(Error('json didn\'t load successfully; error code:'
+                    + request.statusText));
+            }
+        };
+        request.onerror = function() {
+            reject(Error('There was a network error.'));
+        };
+        request.send();
+    });
+}
