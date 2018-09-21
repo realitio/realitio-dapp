@@ -57,7 +57,7 @@
   "NotAsked": "まだ質問を投稿していません。",
   "Answers": "答え",
   "NotAnswered": "まだ答えを投稿していません。",
-  "PreviousAnswer": " (前回の答え <span class=\"latest-answer-text\"></span>)",
+  "PreviousAnswer": " (現在の答え <span class=\"latest-answer-text\"></span>)",
   "YourQA": "あなたの質問と答え",
   "CollapseNotifications": "通知を閉じる",
   "SeeAllNotifications": "すべての通知を表示",
@@ -129,8 +129,8 @@
 
   "BalloonTimeoutWarning": "タイムアウトが短く設定された質問です。<br /><br />嘘や間違いを修正するのに、十分ではないかもしれません。",
   "BalloonLowRewardWarning": "低額報酬の質問です。<br /><br />正しい答えを投稿してボンドを取り戻すインセンティブが、働かないかもしれません。",
-  "BalloonArbitratorWarning": "We do not recognize this arbitrator.<br />Do not believe this information unless you trust them.",
-  "BalloonUnknownArbitrator": "This arbitrator is unknown.",
+  "BalloonArbitratorWarning": "不明な調停者です。<br />この調停者を信頼しないなら、この質問も信用しないでください。",
+  "BalloonUnknownArbitrator": "不明な調停者です。",
 
   "HelpAskingQuestions": "質問する",
   "HelpAskingQuestionsContent": "最初のステップは、正解を知りたい質問を投稿することです。答えを募るため、ファイナルアンサーの回答者への報酬を提供することができます。(自分自身で質問の答えを用意してサバイバルしたい場合、報酬を 0 のままにしておけます。)",
