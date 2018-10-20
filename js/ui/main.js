@@ -10,7 +10,7 @@ const Web3 = require('web3');
 var web3js; // This should be the normal metamask instance
 var web3realitio; // We run our own node to handle watch events that can't reliably be done with infura
 
-const rc_json = require('@realitio/realitio-contracts/truffle/build/contracts/RealityCheck.json');
+const rc_json = require('@realitio/realitio-contracts/truffle/build/contracts/Realitio.json');
 const arb_json = require('@realitio/realitio-contracts/truffle/build/contracts/Arbitrator.json');
 
 // For now we have a json file hard-coding the TOS of known arbitrators.
@@ -718,7 +718,7 @@ function isArbitratorValid(arb) {
     var found = false;
     let arbitrator_addrs = $('select.arbitrator').children();
     arbitrator_addrs.each(function() {
-        if ($(this).val() == arb) {
+        if ($(this).val().toLowerCase() == arb.toLowerCase()) {
             found = true;
             return false;
         }
@@ -3904,7 +3904,7 @@ function populateArbitratorSelect(network_arbs) {
                     return arb_inst.realitycheck.call();
                 }).then(function(rc_addr) {
                     console.log('arb has rc addr', rc_addr);
-                    var is_arb_valid = (rc_addr == myr.address);
+                    var is_arb_valid = (rc_addr.toLowerCase() == myr.address.toLowerCase());
                     verified_arbitrators[na_addr] = is_arb_valid;
                     // For faster loading, we give arbitrators in our list the benefit of the doubt when rendering the page list arbitrator warning
                     // For this we'll check our original list for the network, then just check against the failed list
