@@ -1714,22 +1714,27 @@ function populateSectionEntry(entry, question_data) {
         slicePoint: 140
     });
     entry.find('.question-bounty').text(bounty);
-
+    entry.addClass('has-answer');
+    
     // For these purposes we just ignore any outstanding commits
     if (isAnswered(question_data)) {
-        entry.find('.questions__item__answer').text(rc_question.getAnswerString(question_json, best_answer));
-        entry.addClass('has-answer');
+
+        entry.find('.questions__item__answer span.answer-body').css('opacity',1);
+        entry.find('.questions__item__answer span.answer-body').text(rc_question.getAnswerString(question_json, best_answer));
+        //entry.addClass('has-answer');
     } else {
-        entry.find('.questions__item__answer').text('');
-        entry.removeClass('has-answer');
+        entry.find('.questions__item__answer span.answer-body').text('None');
+        entry.find('.questions__item__answer span.answer-body').css('opacity',0.2);
+        //entry.removeClass('has-answer');
     }
 
     var is_answered = isAnswered(question_data);
-
+    entry.addClass('has-answers').removeClass('no-answers');
+    
     if (is_answered) {
-        entry.addClass('has-answers').removeClass('no-answers');
+        //entry.addClass('has-answers').removeClass('no-answers');
     } else {
-        entry.removeClass('has-answers').addClass('no-answers');
+        //entry.removeClass('has-answers').addClass('no-answers');
     }
 
     timeago.cancel(entry.find('.timeago'));

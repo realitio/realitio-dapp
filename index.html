@@ -8,9 +8,9 @@
     <link rel='shortcut icon' href='assets/image/favicon.ico' type='image/x-icon' />
     <!--
     <link href="assets/fonts/Roboto/css/fonts.css" rel="stylesheet">
-    -->
-    <link rel="stylesheet" href="assets/css/main.css">
-    <link rel="stylesheet" href="https://ajax.googleapis.com/ajax/libs/jqueryui/1/themes/flick/jquery-ui.css" >
+-->
+<link rel="stylesheet" href="assets/css/main.css">
+<link rel="stylesheet" href="https://ajax.googleapis.com/ajax/libs/jqueryui/1/themes/flick/jquery-ui.css" >
 </head>
 <body>
     <script src="https://code.jquery.com/jquery-3.3.1.min.js" integrity="sha256-FgpCb/KJQlLNfOu91ta32o/NMZxltwRo8QtmkMRdAu8=" crossorigin="anonymous"></script>
@@ -52,9 +52,9 @@
             <div class="questions-container-header">
                 <div class="nav-bar">
                     <ul class="main-nav">
-                        <li><a data-menu="questions-latest" class="selected">Latest</a></li>
-                        <li><a data-menu="questions-closing-soon">Closing Soon</a></li>
-                        <li><a data-menu="questions-high-reward">High Reward</a></li>
+                        <li><a data-menu="questions-latest" class="selected">Active</a></li>
+                        <li><a data-menu="questions-closing-soon">Upcoming</a></li>
+                        <!--<li><a data-menu="questions-high-reward">High Reward</a></li>-->
                         <li><a data-menu="questions-resolved">Resolved</a></li>
                     </ul>
                     <script type="text/javascript">
@@ -70,7 +70,20 @@
                         });
                     </script>
                 </div>
-                  <div class="category-list">
+
+                <form name="sort_questions" action="" method="post" class="rcbrowser-form" data-form-type="sort">
+                    <div class="select-container select-container--question-order">
+                        <span class="question-order-label">Sort by:</span>
+                        <select name="question-order" class="rcbrowser-select form-item question-order">
+                            <option value="most-recent">Most Recent</option>
+                            <option value="highest-reward">Highest Reward</option>
+                            <option value="closing-soonest">Closing Soonest</option>
+                            <option value="most-answers">Most Answers</option>
+                        </select>
+                    </div>
+                </form>
+
+                <div class="category-list">
                     <ul id="filter-list">
                         <li><a data-category="all">All</a></li>
                         <li><a data-category="arts">Arts</a></li>
@@ -80,7 +93,7 @@
                         <li><a data-category="science-tech">Science &amp; Tech</a></li>
                         <li><a data-category="sports">Sports</a></li>
                         <li><a data-category="weather">Weather</a></li>
-                        <li><a data-category="misc">Miscellaneous</a></li>
+                        <li><a data-category="misc">Other</a></li>
                     </ul>
                     <script type="text/javascript">
                         $(function() {
@@ -112,329 +125,329 @@
                           <p>Scanning the Ethereum blockchain for questions...</p>
                           <div class="cube1"></div>
                           <div class="cube2"></div>
-                        </div>
-                    </div>
+                      </div>
+                  </div>
 
-                </div><!-- /.questions-list -->
+              </div><!-- /.questions-list -->
 
-                <div class="loadmore-button" data-questions="questions-closing-soon">
-                    <span class="loadmore-text">Load More</span>
-                    <span class="loader"></span>
+              <div class="loadmore-button" data-questions="questions-closing-soon">
+                <span class="loadmore-text">Load More</span>
+                <span class="loader"></span>
+            </div>
+        </div>
+
+        <div id="questions-latest" class="questions">
+
+            <div class="questions-list">
+                <div class="no-questions hidden">
+                    <p>Currently no questions to show. Make sure Metamask is connected to the Ethereum network</p>
                 </div>
-            </div>
-
-            <div id="questions-latest" class="questions">
-
-                <div class="questions-list">
-                    <div class="no-questions hidden">
-                        <p>Currently no questions to show. Make sure Metamask is connected to the Ethereum network</p>
-                    </div>
-                    <div class="no-questions-category hidden">
-                        <p>There are currently no questions in this category. Be the first to ask one!</p>
-                    </div>
-                    <div class="scanning-questions-category">
-                        <div class="spinner">
-                          <p>Scanning the Ethereum blockchain for questions...</p>
-                          <div class="cube1"></div>
-                          <div class="cube2"></div>
-                        </div>
-                    </div>
-
-                </div><!-- /.questions-list -->
-
-                <div id="loadmore-latest" class="loadmore-button" data-questions="questions-latest">
-                    <span class="loadmore-text">Load More</span>
-                    <span class="loader"></span>
+                <div class="no-questions-category hidden">
+                    <p>There are currently no questions in this category. Be the first to ask one!</p>
                 </div>
-            </div>
+                <div class="scanning-questions-category">
+                    <div class="spinner">
+                      <p>Scanning the Ethereum blockchain for questions...</p>
+                      <div class="cube1"></div>
+                      <div class="cube2"></div>
+                  </div>
+              </div>
 
-            <div id="questions-high-reward" class="questions hidden">
+          </div><!-- /.questions-list -->
 
-                <div class="questions-list">
-                    <div class="no-questions hidden">
-                        <p>Currently no questions to show. Make sure Metamask is connected to the Ethereum network</p>
-                    </div>
-
-                    <div class="no-questions-category hidden">
-                        <p>There are currently no high reward questions in this category.</p>
-                    </div>
-
-                    <div class="scanning-questions-category">
-                        <div class="spinner">
-                            <p>Scanning the Ethereum blockchain for questions...</p>
-                          <div class="cube1"></div>
-                          <div class="cube2"></div>
-                        </div>
-                    </div>
-                </div><!-- /.questions-list -->
-
-                <div id="loadmore-high-reward" class="loadmore-button" data-questions="questions-high-reward">
-                    <span class="loadmore-text">Load More</span>
-                    <span class="loader"></span>
-                </div>
-            </div>
-
-            <div id="questions-resolved" class="questions hidden">
-
-                <div class="questions-list">
-                    <div class="no-questions hidden">
-                        <p>Currently no questions to show. Make sure Metamask is connected to the Ethereum network</p>
-                    </div>
-
-                    <div class="no-questions-category hidden">
-                        <p>There are currently no resolved questions in this category.</p>
-                    </div>
-
-                    <div class="scanning-questions-category">
-                        <div class="spinner">
-                          <p>Scanning the Ethereum blockchain for questions...</p>
-                          <div class="cube1"></div>
-                          <div class="cube2"></div>
-                        </div>
-                    </div>
-                </div><!-- /.questions-list -->
-
-
-                <div class="loadmore-button" data-questions="questions-resolved">
-                    <span class="loadmore-text">Load More</span>
-                    <span class="loader"></span>
-                </div>
-            </div>
-        </div><!-- /#questions-container -->
-    </div><!-- /#main -->
-
-    <div id="footer-notification-bar" style="display: none;">
-        <div>We updated the contracts on October, 26th, 2018.<br />If you have money to claim from before that, go <a href="v1/">here</a>.</div>
-        <br />
-        <a id="got-it-button" href="">Got it</a>
-        <br />
-        <br />
-    </div>
-
-    <footer id="site-footer" class="clearfix">
-
-        <nav id="site-footer-nav--secondary">
-
-            <div class="cols">
-                <h1 class="logo">
-                    <a href="/">Realit.io</a>
-                </h1>
-            </div>
-            <div class="cols">
-                <h3>Learn More</h3>
-                <ul>
-                    <li><a href="https://realit.io">Learn more</a></li>
-                    <li><a href="https://github.com/realitio/realitio-dapp">Github</a></li>
-                    <li><a href="https://realitio.github.io/docs/html/">Documentation</a></li>
-                    <li><a href="">White Paper</a></li>
-                </ul>
-            </div>
-
-            <div class="cols">
-                <h3>Join Us</h3>
-                <ul>
-                    <li><a href="https://discordapp.com/channels/463917311267569674/"><span class="icon discord">Discord</span></a></li>
-                    <li><a href="https://twitter.com/RealitioProject"><span class="icon twitter">Twitter</span></a></li>
-                    <li><a href="https://medium.com/@edmundedgar"><span class="icon twitter">Medium</span></a></li>
-                </ul>
-            </div>
-        </nav>
-        <a id="backtotop" href="#"><span></span></a>
-    </footer>
-
-
-    <div id="help-center-window" class="rcbrowser rcbrowser--help-center display-top-only" data-browser-id="help-center-window">
-        <div class="rcbrowser-inner">
-            <div class="rcbrowser-header">
-                <div class="rcbrowser-control">
-                    <span class="rcbrowser__close-button" data-target-id="help-center-window"></span>
-                    <span></span>
-                    <span></span>
-                </div>
-                <h2 class="rcbrowser-main-header-title">How it works</h2>
-            </div>
-
-            <div class="rcbrowser-main">
-                <div class="rcbrowser-main-body help-explanation">
-                <h3>Asking Questions</h3>
-                    <p>The first step is to ask a question that you want confirmed. To encourage others to answer, you can offer a reward that goes to whomever gives the final answer. (You can also leave the reward as zero if you plan to supply the answer yourself and assume it will survive challenges.) </p>
-
-                    <h3>Opening Date & Countdown</h3>
-                    <p>The opening date is when answers can first be posted. If the event has not yet taken place, make sure the opening date is set to after the event's date. The countdown period determines the period of time an answer can be posted after an answer. Each answer resets the the countdown period. The final unchallenged answer after the countdown period expires is the winner.</p>
-
-                    <h3>Answering Questions</h3>
-                    <p>Anyone can answer a question by posting a bond, and anyone can challenge that answer by posting a new answer, but doing so requires doubling the bond. Challenges can continue, as long as someone is willing to double the bond in the hopes of claiming the bond and the reward.</p>
-
-                    <h3>Settlement</h3>
-                    <p>The result is settled automatically at the end of the countdown period. The final answer at that time is the winner and claims the bond and the reward, if any. (If the same winning answer is posted more than once, the system deducts the same amount as the bond posted by the earlier correct answers.)</p>
-
-                    <h3>Arbitration</h3>
-                    <p>Anyone who wants to challenge the final answer can request arbitration. The arbitrator can be any Ethereum contract and may be controlled by a company, a trusted group or individual, a DAO, or any other decision-making process you can code. The arbitrator contract will have a set fee that must be paid to settle the question, but if the winning total is high enough, it can be profitable to challenge an answer via arbitration.</p>
-
-                    <p>For more details, please see the <a href="https://realitio.github.io/docs/html/dapp.html" target="_blank"><b>documentation</b></a></p>
-
-                </div>
-
-            </div>
-
-
+          <div id="loadmore-latest" class="loadmore-button" data-questions="questions-latest">
+            <span class="loadmore-text">Load More</span>
+            <span class="loader"></span>
         </div>
     </div>
 
-    <div id="your-question-answer-window" class="rcbrowser rcbrowser--your-qa display-top-only" data-browser-id="your-question-answer-window">
-        <div class="rcbrowser-inner">
-            <div class="rcbrowser-header">
-                <div class="rcbrowser-control">
-                    <span class="rcbrowser__close-button" data-target-id="your-question-answer-window"></span>
-                    <span></span>
-                    <span></span>
-                </div>
-                <h2 class="rcbrowser-main-header-title">My Account</h2>
+    <div id="questions-high-reward" class="questions hidden">
 
-                <div class="rcbrowser-loader-container rcbrowser-loader-container--your-qa">
-                    <span class="loader"></span>
-                </div>
+        <div class="questions-list">
+            <div class="no-questions hidden">
+                <p>Currently no questions to show. Make sure Metamask is connected to the Ethereum network</p>
             </div>
 
-            <div class="rcbrowser-main">
-                <div class="rcbrowser-main-header">
-                    <h2 class="rcbrowser-main-header-title">Your Questions &amp; Answers</h2>
-                    <div class="rcbrowser-main-header-subtitle"><a target="_blank" class="account-balance-link" href="#">Your Balance: <span class="account-balance"></span> ETH</a></div>
-                    <div class="answer-claim-button claim-all">Claim your <span class="claimable-eth"></span> ETH</div>
-                    <div class="answer-claiming-container claim-all">Claiming <span class="claimable-eth"></span> ETH <a class="txid" target="_blank" href=""></a></div>
-                </div>
+            <div class="no-questions-category hidden">
+                <p>There are currently no high reward questions in this category.</p>
+            </div>
 
-                <div class="rcbrowser-main-body rcbrowser-main-body--your-qa">
-
-                    <div class="notifications-show-hide clearfix">
-                        <a href="" class="hide-lower-notifications">Collapse Notifications</a>
-                    </div>
-
-                    <div class="notifications clearfix">
-                        <div class="no-notifications-item">
-                            <div class="no-notifications-item-inner">
-                                <div class="no-notifications-item-body">
-                                    <p >You have no notifications.</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="notifications-show-hide clearfix">
-                        <a href="" class="see-all-notifications" style="visibility: hidden;">See All Notifications</a>
-                    </div>
-
-                    <div class="notifications-template-container">
-                        <div class="notifications-item template-item rcbrowser__open-button">
-                            <div class="notifications-item-inner">
-                                <div class="notification-badge notification-badge--positive">
-                                </div>
-                                <div class="notifications-item-body">
-                                    <p class="notification-text"></p>
-                                    <span><time class="timeago" datetime=""></time></span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="your-qa clearfix">
-                        <div class="your-qa__questions">
-                            <div class="your-qa__questions-inner">
-                                <div class="your-qa__questions-header">Questions</div>
-
-                                <div class="no-your-qa__questions__item">
-                                    <div class="your-qa__questions__item-header">
-                                        <div class="your-qa__questions__item-date">
-                                        </div>
-                                        <div class="no-your-qa__questions__item-title">
-                                            <span class="question-text">You have not asked any questions.</span>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div class="your-qa__questions__item template-item">
-                                    <div class="your-qa__questions__item-header">
-                                        <div class="your-qa__questions__item-date">
-                                            <span class="item-date"></span>
-                                        </div>
-                                        <a href="" class="your-qa__questions__item-title rcbrowser__open-button">
-                                            <span class="question-text"></span>
-                                        </a>
-                                    </div>
-
-                                    <div class="your-qa__questions__item-body--latest">
-                                        <span class="latest-answer-text"></span>
-                                    </div>
-                                    <div class="your-qa__questions__item-status"></div>
-                                </div>
-
-                            </div>
-                        </div>
-
-                        <span class="your-qa__divider"></span>
-
-                        <div class="your-qa__answers">
-                            <div class="your-qa__answers-inner">
-                                <div class="your-qa__answers-header">Answers</div>
-
-                                <div class="no-your-qa__questions__item">
-                                    <div class="your-qa__questions__item-header">
-                                        <div class="your-qa__questions__item-date">
-                                        </div>
-                                        <div class="no-your-qa__questions__item-title">
-                                            <span>You have not answered any questions.</span>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div class="your-qa__questions__item template-item">
-                                    <div class="your-qa__questions__item-header">
-                                        <div class="your-qa__questions__item-date">
-                                            <span class="item-date"></span>
-                                        </div>
-                                        <a href="" class="your-qa__questions__item-title rcbrowser__open-button">
-                                            <span class="question-text"></span>
-                                        </a>
-                                    </div>
-
-                                    <div class="your-qa__questions__item-body--user">
-                                        <span class="user-answer-text"></span>
-                                        <span class="different-latest-answer-container"> (since changed to <span class="latest-answer-text"></span>)</span>
-                                    </div>
-                                    <div class="your-qa__questions__item-status"></div>
-                                </div>
-
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div><!-- /.rcbrowser-main -->
-        </div><!-- /.rcbrowser-inner -->
-    </div><!-- /.rcbrowser--your-qa -->
-
-    <div style="" id="qa-detail-container"></div>
-
-
-
-    <div id="post-a-question-window-template" class="rcbrowser rcbrowser--postaquestion" data-browser-id="id0">
-        <div class="rcbrowser-inner">
-            <div class="rcbrowser-header">
-                <div class="rcbrowser-control">
-                    <span class="rcbrowser__close-button" data-target-id="help-center-window"></span>
-                    <span></span>
-                    <span></span>
-                </div>
-                <h2 class="rcbrowser-main-header-title">Ask a Question</h2>
-                <div class="rcbrowser-loader-container">
-                    <span class="loader"></span>
+            <div class="scanning-questions-category">
+                <div class="spinner">
+                    <p>Scanning the Ethereum blockchain for questions...</p>
+                    <div class="cube1"></div>
+                    <div class="cube2"></div>
                 </div>
             </div>
-            <div class="rcbrowser-main">
-                <div class="rcbrowser-main-header">
-                    <div class="rcbrowser-main-header-subtitle">Your Balance: <span class="account-balance"></span> ETH</div>
+        </div><!-- /.questions-list -->
+
+        <div id="loadmore-high-reward" class="loadmore-button" data-questions="questions-high-reward">
+            <span class="loadmore-text">Load More</span>
+            <span class="loader"></span>
+        </div>
+    </div>
+
+    <div id="questions-resolved" class="questions hidden">
+
+        <div class="questions-list">
+            <div class="no-questions hidden">
+                <p>Currently no questions to show. Make sure Metamask is connected to the Ethereum network</p>
+            </div>
+
+            <div class="no-questions-category hidden">
+                <p>There are currently no resolved questions in this category.</p>
+            </div>
+
+            <div class="scanning-questions-category">
+                <div class="spinner">
+                  <p>Scanning the Ethereum blockchain for questions...</p>
+                  <div class="cube1"></div>
+                  <div class="cube2"></div>
+              </div>
+          </div>
+      </div><!-- /.questions-list -->
+
+
+      <div class="loadmore-button" data-questions="questions-resolved">
+        <span class="loadmore-text">Load More</span>
+        <span class="loader"></span>
+    </div>
+</div>
+</div><!-- /#questions-container -->
+</div><!-- /#main -->
+
+<div id="footer-notification-bar" style="display: none;">
+    <div>We updated the contracts on October, 26th, 2018.<br />If you have money to claim from before that, go <a href="v1/">here</a>.</div>
+    <br />
+    <a id="got-it-button" href="">Got it</a>
+    <br />
+    <br />
+</div>
+
+<footer id="site-footer" class="clearfix">
+
+    <nav id="site-footer-nav--secondary">
+
+        <div class="cols">
+            <h1 class="logo">
+                <a href="/">Realit.io</a>
+            </h1>
+        </div>
+        <div class="cols">
+            <h3>Learn More</h3>
+            <ul>
+                <li><a href="https://realit.io">Learn more</a></li>
+                <li><a href="https://github.com/realitio/realitio-dapp">Github</a></li>
+                <li><a href="https://realitio.github.io/docs/html/">Documentation</a></li>
+                <li><a href="">White Paper</a></li>
+            </ul>
+        </div>
+
+        <div class="cols">
+            <h3>Join Us</h3>
+            <ul>
+                <li><a href="https://discordapp.com/channels/463917311267569674/"><span class="icon discord">Discord</span></a></li>
+                <li><a href="https://twitter.com/RealitioProject"><span class="icon twitter">Twitter</span></a></li>
+                <li><a href="https://medium.com/@edmundedgar"><span class="icon twitter">Medium</span></a></li>
+            </ul>
+        </div>
+    </nav>
+    <a id="backtotop" href="#"><span></span></a>
+</footer>
+
+
+<div id="help-center-window" class="rcbrowser rcbrowser--help-center display-top-only" data-browser-id="help-center-window">
+    <div class="rcbrowser-inner">
+        <div class="rcbrowser-header">
+            <div class="rcbrowser-control">
+                <span class="rcbrowser__close-button" data-target-id="help-center-window"></span>
+                <span></span>
+                <span></span>
+            </div>
+            <h2 class="rcbrowser-main-header-title">How it works</h2>
+        </div>
+
+        <div class="rcbrowser-main">
+            <div class="rcbrowser-main-body help-explanation">
+                <h3>Asking Questions</h3>
+                <p>The first step is to ask a question that you want confirmed. To encourage others to answer, you can offer a reward that goes to whomever gives the final answer. (You can also leave the reward as zero if you plan to supply the answer yourself and assume it will survive challenges.) </p>
+
+                <h3>Opening Date & Countdown</h3>
+                <p>The opening date is when answers can first be posted. If the event has not yet taken place, make sure the opening date is set to after the event's date. The countdown period determines the period of time an answer can be posted after an answer. Each answer resets the the countdown period. The final unchallenged answer after the countdown period expires is the winner.</p>
+
+                <h3>Answering Questions</h3>
+                <p>Anyone can answer a question by posting a bond, and anyone can challenge that answer by posting a new answer, but doing so requires doubling the bond. Challenges can continue, as long as someone is willing to double the bond in the hopes of claiming the bond and the reward.</p>
+
+                <h3>Settlement</h3>
+                <p>The result is settled automatically at the end of the countdown period. The final answer at that time is the winner and claims the bond and the reward, if any. (If the same winning answer is posted more than once, the system deducts the same amount as the bond posted by the earlier correct answers.)</p>
+
+                <h3>Arbitration</h3>
+                <p>Anyone who wants to challenge the final answer can request arbitration. The arbitrator can be any Ethereum contract and may be controlled by a company, a trusted group or individual, a DAO, or any other decision-making process you can code. The arbitrator contract will have a set fee that must be paid to settle the question, but if the winning total is high enough, it can be profitable to challenge an answer via arbitration.</p>
+
+                <p>For more details, please see the <a href="https://realitio.github.io/docs/html/dapp.html" target="_blank"><b>documentation</b></a></p>
+
+            </div>
+
+        </div>
+
+
+    </div>
+</div>
+
+<div id="your-question-answer-window" class="rcbrowser rcbrowser--your-qa display-top-only" data-browser-id="your-question-answer-window">
+    <div class="rcbrowser-inner">
+        <div class="rcbrowser-header">
+            <div class="rcbrowser-control">
+                <span class="rcbrowser__close-button" data-target-id="your-question-answer-window"></span>
+                <span></span>
+                <span></span>
+            </div>
+            <h2 class="rcbrowser-main-header-title">My Account</h2>
+
+            <div class="rcbrowser-loader-container rcbrowser-loader-container--your-qa">
+                <span class="loader"></span>
+            </div>
+        </div>
+
+        <div class="rcbrowser-main">
+            <div class="rcbrowser-main-header">
+                <h2 class="rcbrowser-main-header-title">Your Questions &amp; Answers</h2>
+                <div class="rcbrowser-main-header-subtitle"><a target="_blank" class="account-balance-link" href="#">Your Balance: <span class="account-balance"></span> ETH</a></div>
+                <div class="answer-claim-button claim-all">Claim your <span class="claimable-eth"></span> ETH</div>
+                <div class="answer-claiming-container claim-all">Claiming <span class="claimable-eth"></span> ETH <a class="txid" target="_blank" href=""></a></div>
+            </div>
+
+            <div class="rcbrowser-main-body rcbrowser-main-body--your-qa">
+
+                <div class="notifications-show-hide clearfix">
+                    <a href="" class="hide-lower-notifications">Collapse Notifications</a>
                 </div>
-                <div class="rcbrowser-main-body">
-                    <form name="postaquestion" action="" method="post" class="rcbrowser-form" data-form-type="question">
+
+                <div class="notifications clearfix">
+                    <div class="no-notifications-item">
+                        <div class="no-notifications-item-inner">
+                            <div class="no-notifications-item-body">
+                                <p >You have no notifications.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="notifications-show-hide clearfix">
+                    <a href="" class="see-all-notifications" style="visibility: hidden;">See All Notifications</a>
+                </div>
+
+                <div class="notifications-template-container">
+                    <div class="notifications-item template-item rcbrowser__open-button">
+                        <div class="notifications-item-inner">
+                            <div class="notification-badge notification-badge--positive">
+                            </div>
+                            <div class="notifications-item-body">
+                                <p class="notification-text"></p>
+                                <span><time class="timeago" datetime=""></time></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="your-qa clearfix">
+                    <div class="your-qa__questions">
+                        <div class="your-qa__questions-inner">
+                            <div class="your-qa__questions-header">Questions</div>
+
+                            <div class="no-your-qa__questions__item">
+                                <div class="your-qa__questions__item-header">
+                                    <div class="your-qa__questions__item-date">
+                                    </div>
+                                    <div class="no-your-qa__questions__item-title">
+                                        <span class="question-text">You have not asked any questions.</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="your-qa__questions__item template-item">
+                                <div class="your-qa__questions__item-header">
+                                    <div class="your-qa__questions__item-date">
+                                        <span class="item-date"></span>
+                                    </div>
+                                    <a href="" class="your-qa__questions__item-title rcbrowser__open-button">
+                                        <span class="question-text"></span>
+                                    </a>
+                                </div>
+
+                                <div class="your-qa__questions__item-body--latest">
+                                    <span class="latest-answer-text"></span>
+                                </div>
+                                <div class="your-qa__questions__item-status"></div>
+                            </div>
+
+                        </div>
+                    </div>
+
+                    <span class="your-qa__divider"></span>
+
+                    <div class="your-qa__answers">
+                        <div class="your-qa__answers-inner">
+                            <div class="your-qa__answers-header">Answers</div>
+
+                            <div class="no-your-qa__questions__item">
+                                <div class="your-qa__questions__item-header">
+                                    <div class="your-qa__questions__item-date">
+                                    </div>
+                                    <div class="no-your-qa__questions__item-title">
+                                        <span>You have not answered any questions.</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="your-qa__questions__item template-item">
+                                <div class="your-qa__questions__item-header">
+                                    <div class="your-qa__questions__item-date">
+                                        <span class="item-date"></span>
+                                    </div>
+                                    <a href="" class="your-qa__questions__item-title rcbrowser__open-button">
+                                        <span class="question-text"></span>
+                                    </a>
+                                </div>
+
+                                <div class="your-qa__questions__item-body--user">
+                                    <span class="user-answer-text"></span>
+                                    <span class="different-latest-answer-container"> (since changed to <span class="latest-answer-text"></span>)</span>
+                                </div>
+                                <div class="your-qa__questions__item-status"></div>
+                            </div>
+
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div><!-- /.rcbrowser-main -->
+    </div><!-- /.rcbrowser-inner -->
+</div><!-- /.rcbrowser--your-qa -->
+
+<div style="" id="qa-detail-container"></div>
+
+
+
+<div id="post-a-question-window-template" class="rcbrowser rcbrowser--postaquestion" data-browser-id="id0">
+    <div class="rcbrowser-inner">
+        <div class="rcbrowser-header">
+            <div class="rcbrowser-control">
+                <span class="rcbrowser__close-button" data-target-id="help-center-window"></span>
+                <span></span>
+                <span></span>
+            </div>
+            <h2 class="rcbrowser-main-header-title">Ask a Question</h2>
+            <div class="rcbrowser-loader-container">
+                <span class="loader"></span>
+            </div>
+        </div>
+        <div class="rcbrowser-main">
+            <div class="rcbrowser-main-header">
+                <div class="rcbrowser-main-header-subtitle">Your Balance: <span class="account-balance"></span> ETH</div>
+            </div>
+            <div class="rcbrowser-main-body">
+                <form name="postaquestion" action="" method="post" class="rcbrowser-form" data-form-type="question">
                     <div class="row clearfix">
                         <div class="cols-2">
                             <div class="select-container select-container--question-category select-container--has-quick-help">
@@ -447,7 +460,7 @@
                                     <option value="science-tech">Science &amp; Tech</option>
                                     <option value="sports">Sports</option>
                                     <option value="weather">Weather</option>
-                                    <option value="misc">Miscellaneous</option>
+                                    <option value="misc">Other</option>
                                 </select>
                                 <div class="quick-help">
                                     <span class="quick-help-button">?</span>
@@ -567,35 +580,45 @@
                         </div>
                     </div>
 
-                        <div class="rcbrowser__buttons clearfix">
-                            <div class="rcbrowser__close-button close-question-window " data-target-id="id0">Cancel</div>
-                            <input type="submit" class="post-question-submit rcbrowser-submit button--bounce" value="Submit" data-browser-id="id0" data-form-type="question">
-                        </div>
-                        <span class="rcbrowser-form-footer">&nbsp;</a></span>
-                    </form>
-                </div>
-            </div><!-- /.rcbrowser-main -->
-        </div><!-- /.rcbrowser-inner -->
-    </div><!-- /.rcbrowser-postaquestion  -->
+                    <div class="rcbrowser__buttons clearfix">
+                        <div class="rcbrowser__close-button close-question-window " data-target-id="id0">Cancel</div>
+                        <input type="submit" class="post-question-submit rcbrowser-submit button--bounce" value="Submit" data-browser-id="id0" data-form-type="question">
+                    </div>
+                    <span class="rcbrowser-form-footer">&nbsp;</a></span>
+                </form>
+            </div>
+        </div><!-- /.rcbrowser-main -->
+    </div><!-- /.rcbrowser-inner -->
+</div><!-- /.rcbrowser-postaquestion  -->
 
-    <div class="questions__item template-item">
-        <div class="questions__item-inner">
-            <div style="position: relative; height: 15px;">
+<div class="questions__item template-item">
+    <div class="questions__item-inner">
+        <div style="position: relative; height: 15px;">
             <div class="question-setting-warning" style="display: none;">
-                <i class="material-icons purple">announcement</i>
+                <i class="material-icons purple">warning</i>
                 <div class="balloon"></div>
             </div></div>
             <a class="questions__item__title rcbrowser__open-button" href="#">
-                                <span class="question-title"></span>
+                <span class="question-title"></span>
             </a>
-            <div class="questions__item__answer"></div>
-                <div class="questions__item__footer">
-                    <span class="question-bounty-container"><span class="question-bounty"></span> ETH</span>
-                    <span class="closing-time-label"><span class="resolved">Resolved</span> <span class="unresolved">Closing</span> <time class="timeago" datetime=""></time></span>
-                    <span class="created-time-label">Posted <time class="timeago" datetime=""></time></span>
-                    <span class="arbitration-pending-label">Arbitration pending</span>
+            <div class="questions__item__answer">
+                <span class="current-answer">Current Answer: </span>
+                <span class="unconfirmed-answer">Unconfirmed Answer: </span>
+                <span class="answer-body"></span>
+                <span class="total-label">Total: </span>
+                <span class="total-value"></span> ETH
+                <div class="questions__answer__footer">
+                    <a href="#">29 September, 2018</a>
                 </div>
             </div>
+            <div class="questions__item__footer">
+                <span class="closing-time-label"><span class="resolved">Resolved</span> <span class="unresolved">Closing</span> <time class="timeago" datetime=""></time></span>
+                <span class="created-time-label">Posted <time class="timeago" datetime=""></time></span>
+                <span class="question-bounty-container">Reward: <span class="question-bounty"></span> ETH</span>
+                <span class="arbitration-pending-label">Arbitration pending</span>
+                <span class="status-unconfirmed">(Unconfirmed)</span>
+            </div>
+        </div>
     </div>
 
     <div class="answer-form-container multiple-select template-item" style="display:none;">
