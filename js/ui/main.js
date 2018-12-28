@@ -4090,6 +4090,7 @@ function initNetwork(net_id) {
     if ($('.network-status'+net_cls).size() == 0) {
         return false;
     }
+    $('.network-status.network-detecting').hide();
     $('.network-status'+net_cls).show();
     if (BLOCK_EXPLORERS[net_id]) {
         block_explorer = BLOCK_EXPLORERS[net_id];

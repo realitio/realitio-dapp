@@ -217,6 +217,9 @@ span.network-status {
     color: #939596;
     display: none;
 }   
+span.network-status.network-detecting {
+    display:inline;
+}
 
 .page-qa #site-title {
     color: inherit;
