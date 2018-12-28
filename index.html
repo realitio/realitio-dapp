@@ -591,7 +591,7 @@
         <div class="questions__item-inner">
             <div style="position: relative; height: 15px;">
             <div class="question-setting-warning" style="display: none;">
-                <i class="material-icons purple">announcement</i>
+                <i class="material-icons purple">warning</i>
                 <div class="balloon"></div>
             </div></div>
             <a class="questions__item__title rcbrowser__open-button" href="#">
@@ -739,7 +739,7 @@
             <span class="rcbrowser-form-footer">&nbsp;</a></span>
         </form>
     </div>
-    <div class="answer-form-container bool template-item" style="display:none">
+    <div class="clearfix answer-form-container bool template-item" style="display:none">
         <div class="answer-form-header">
             <span class="answer-prompt-text no-answer-only">Do you know the answer to this question?</span>
             <span class="answer-prompt-text has-answer-only">Do you want to correct this answer?</span>
@@ -868,18 +868,49 @@
                     <div class="rcbrowser-warning-header-failed-box">Failed transaction <span class="failed-txid"><a target="_blank" href="https://ropsten.etherscan.io/tx/0xf49c9204aab225047ac223391917d60c8908df8b84eb9a30c15a993a0d829a4b">0xf49c92...</a></span></div>
                 </div>
 
-                <div class="rcbrowser-main-header">
+                <div class="rcbrowser-main-header clearfix">
 
                     <div class="unconfirmed-question-header">
                         <span class="pending-question-txid"><br /><a target="_blank" href="#"></a></span>
                         <span class="unconfirmed-question-label">Unconfirmed Transaction</span>
                     </div>
 
-                    <h2 class="rcbrowser-main-header-title question-title"></h2>
-
                     <div class="question-setting-warning" style="text-align: right; display: none;">
-                        <i class="material-icons purple">announcement</i>
+                        <i class="material-icons purple">warning</i>
                         <div class="balloon"></div>
+                    </div>
+                    
+                    <div class="rcbrowser-question">
+                        <h2 class="rcbrowser-main-header-title question-title"></h2>
+
+                        <div class="rcbrowser-main-header-subtitle">
+                            <div class="rcbrowser-main-header-date"></div>
+                            <span class="reward-value-container">Reward: <span class="reward-value"></span> ETH</span>
+                            <span class="add-reward-button" data-browser-id="id5">+</span>
+                            <span class="share-question-link"><a href="#" target="_blank">Share...</a></span>
+                            <span class="resolved-at-container">Resolved: <span class="resolved-at-value timeago"></span></span>
+                            <div class="answer-claim-button">Claim your <span class="claimable-eth"></span> ETH</div>
+                        </div>
+                    </div>
+                    
+                    <div class="rcbrowser-question-current-answer">
+                        <h2 class="question-current-answer">
+                            <span class="question-unconfirmed-answer-label" style="display: none;">Unconfirmed Answer:</span>
+                            <span class="question-current-answer-label">Current Answer:</span>
+                            <span class="question-final-answer-label" style="display: none;">Final Answer:</span>
+                            <span class="question-current-answer-body"></span>
+                            <span class="question-current-answer-reward-label">Total: </span>
+                            <span class="question-current-answer-reward-body"></span>ETH</h2>
+
+                        <div class="rcbrowser-main-header-subtitle">
+                            <div class="clearfix apply-for-arbitration-container">
+                                <a href="" class="arbitration-button">Apply for arbitration... (<span class="arbitration-fee"></span> ETH)</a>
+                            </div>
+
+                            <div class="clearfix pending-arbitration-container">
+                                This question is awaiting arbitration.
+                            </div>
+                        </div>
                     </div>
 
                     <div class="question-setting-info" style="text-align: right">
@@ -895,16 +926,8 @@
                         </div>
                     </div>
 
-                    <div class="rcbrowser-main-header-subtitle" style="float:right">
+                    <div class="rcbrowser-main-header-subtitle" style="display:none;">
                         <span class="bond-value-container">Last bond: <span class="bond-value"></span> ETH</span>
-                    </div>
-
-                    <div class="rcbrowser-main-header-subtitle">
-                        <div class="rcbrowser-main-header-date"></div>
-                        <span class="reward-value-container">Reward: <span class="reward-value"></span> ETH</span>
-                        <span class="add-reward-button" data-browser-id="id5">+ Add Reward</span>
-                        <span class="resolved-at-container">Resolved: <span class="resolved-at-value timeago"></span></span>
-                        <div class="answer-claim-button">Claim your <span class="claimable-eth"></span> ETH</div>
                     </div>
 
                     <div class="add-reward-container">
@@ -931,14 +954,6 @@
                 <div class="rcbrowser-main-body">
 
                     <div class="answer-deadline-container">Deadline: <span class="answer-deadline timeago"></span></div>
-
-                    <div class="clearfix apply-for-arbitration-container">
-                        <a href="" class="arbitration-button">Apply for arbitration (<span class="arbitration-fee"></span> ETH)</a>
-                    </div>
-
-                    <div class="clearfix pending-arbitration-container">
-                        This question is awaiting arbitration.
-                    </div>
 
                     <div class="unconfirmed-answer-container">
                         <div class="unconfirmed-answer-inner">
@@ -995,7 +1010,7 @@
                         </div>
                     </div>
 
-                    <div class="current-answer-container">
+                    <div class="current-answer-container" style="display: none;">
                         <div class="current-answer-inner">
                             <div class="current-answer-header">
                                 <span class="current-answer-label-current">Current Answer</span>
@@ -1025,10 +1040,21 @@
                         <div class="answered-history-header"><span>Answer History</span></div>
 
                         <div class="answer-item answered-history-item template-item">
-                            <div class="current-answer-body">
-                                <p><span class="current-answer"></span></p>
+                            <div class="current-answer-body my-answer">
+                                <div class="answer-data__avatar"></div>
+                                <div class="balloon">
+                                    <div class="answer-data__item answer-data__user-id">
+                                        <span>User ID: </span><span class="answerer"></span>
+                                    </div>
+                                </div>
+                                <p>
+                                    <span class="current-answer"></span> | Bond Added: 
+                                    <span class="answer-bond-value"></span> <span>ETH</span> 
+                                    <span class="timeago-container"><time class="answer-time timeago" datetime=""></time></span>
+                                    <span class="current-answer-label">(Current Answer)</span>
+                                    <span class="unconfirmed-answer-label">(Unconfirmed Answer)</span>
+                                </p>
                             </div>
-                            <span class="timeago-container"><time class="answer-time timeago" datetime=""></time></span>
                             <div class="answer-data">
                                 <div class="answer-data-inner">
                                     <div class="answer-data__avatar"></div>

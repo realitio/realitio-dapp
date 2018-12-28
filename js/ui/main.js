@@ -2101,12 +2101,12 @@ function populateQuestionWindow(rcqa, question_detail, is_refresh) {
     var bond = new BigNumber(web3js.toWei(0.0001, 'ether'));
     if (isAnswerActivityStarted(question_detail)) {
 
-        var current_container = rcqa.find('.current-answer-container');
+        var current_container = rcqa.find('.question-current-answer');
 
         if (isAnswered(question_detail)) {
             // label for show the current answer.
             var label = rc_question.getAnswerString(question_json, question_detail[Qi_best_answer]);
-            current_container.find('.current-answer-body').find('.current-answer').text(label);
+            current_container.find('.question-current-answer-body').text(label);
         }
 
         bond = question_detail[Qi_bond];
@@ -2124,7 +2124,7 @@ function populateQuestionWindow(rcqa, question_detail, is_refresh) {
                 // answerer data
                 var ans_data = rcqa.find('.current-answer-container').find('.answer-data');
                 ans_data.find('.answerer').text(current_answer.user);
-                var avjazzicon = jazzicon(32, parseInt(current_answer.user.toLowerCase().slice(2, 10), 16));
+                var avjazzicon = jazzicon(20, parseInt(current_answer.user.toLowerCase().slice(2, 10), 16));
                 ans_data.find('.answer-data__avatar').html(avjazzicon);
                 if (current_answer.user == account) {
                     ans_data.addClass('current-account');
@@ -2141,7 +2141,7 @@ function populateQuestionWindow(rcqa, question_detail, is_refresh) {
                 unrevealed_answer_container.find('.reveal-time.timeago').attr('datetime', rc_question.convertTsToString(commitExpiryTS(question_detail, last_ans['ts'])));
                 timeAgo.render(unrevealed_answer_container.find('.reveal-time.timeago'));
                 unrevealed_answer_container.find('.answerer').text(last_ans['user']);
-                var avjazzicon = jazzicon(32, parseInt(last_ans['user'].toLowerCase().slice(2, 10), 16));
+                var avjazzicon = jazzicon(20, parseInt(last_ans['user'].toLowerCase().slice(2, 10), 16));
                 unrevealed_answer_container.find('.answer-data__avatar').html(avjazzicon);
             } else {
                 unrevealed_answer_container.find('.answer-bond-value').text('');
@@ -2165,7 +2165,7 @@ function populateQuestionWindow(rcqa, question_detail, is_refresh) {
                 hist_item.attr('id', hist_id);
                 hist_item.find('.answerer').text(ans['user']);
 
-                var avjazzicon = jazzicon(32, parseInt(ans['user'].toLowerCase().slice(2, 10), 16));
+                var avjazzicon = jazzicon(20, parseInt(ans['user'].toLowerCase().slice(2, 10), 16));
 
                 hist_item.find('.answer-data__avatar').html(avjazzicon);
 
@@ -2285,7 +2285,7 @@ console.log(ans);
         var ans_frm = makeSelectAnswerInput(question_json, question_detail[Qi_opening_ts].toNumber());
         ans_frm.addClass('is-open');
         ans_frm.removeClass('template-item');
-        rcqa.find('.answered-history-container').after(ans_frm);
+        rcqa.find('.answered-history-container').before(ans_frm);
     }
 
     // If the user has edited the field, never repopulate it underneath them
@@ -2994,11 +2994,11 @@ function pushWatchedAnswer(answer) {
 $(document).on('click', '.answer-item', function() {
     //console.log('.answer-item clicked');
     if ($(this).find('.answer-data').hasClass('is-bounce')) {
-        $(this).find('.answer-data').removeClass('is-bounce');
-        $(this).find('.answer-data').css('display', 'none');
+        //$(this).find('.answer-data').removeClass('is-bounce');
+        //$(this).find('.answer-data').css('display', 'none');
     } else {
-        $(this).find('.answer-data').addClass('is-bounce');
-        $(this).find('.answer-data').css('display', 'block');
+        //$(this).find('.answer-data').addClass('is-bounce');
+        //$(this).find('.answer-data').css('display', 'block');
     }
 });
 
@@ -3250,9 +3250,15 @@ function clearForm(parent_div, question_json) {
 // open/close/add reward
 $(document).on('click', '.add-reward-button', function(e) {
     var container = $(this).closest('.rcbrowser--qa-detail').find('.add-reward-container');
-    container.addClass('is-open');
-    container.addClass('is-bounce');
-    container.css('display', 'block');
+    if (container.hasClass('is-open')){
+        container.removeClass('is-open');
+        container.removeClass('is-bounce');
+        container.css('display', 'none');
+    } else {     
+        container.addClass('is-open');
+        container.addClass('is-bounce');
+        container.css('display', 'block');
+    }
 });
 
 $(document).on('click', '.add-reward__close-button', function(e) {
