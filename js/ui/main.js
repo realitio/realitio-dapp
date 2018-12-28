@@ -2075,14 +2075,48 @@ function displayQuestionDetail(question_detail) {
     }
 }
 
+function mergeUnconfirmed(unconfirmed_questions, confirmed_questions, current_bond) {
+
+    if (confirmed_questions.length > 0) {
+        if (current_bond.eq(confirmed_questions[confirmed_questions.length-1].args.bond)) {
+            confirmed_questions[confirmed_questions.length-1].args.is_current = true;
+        }
+    }
+    if (unconfirmed_questions.length == 0) {
+        return confirmed_questions;
+    }
+    var ret = confirmed_questions;
+    for (var u=0; u<unconfirmed_questions.length; u++) {
+        var uq = unconfirmed_questions[u];
+        uq.args.is_unconfirmed = true;
+        if (uq.args.bond.lte(current_bond)) {
+            uq.args.is_replaced = true;
+        }
+        if (ret.length == 0) {
+            ret.push(uq);
+        }
+        for(var i=0; i<ret.length; i++) {
+            if (ret[i].args.bond.lte(uq.args.bond)) {
+                ret.splice(0, i, uq);
+                break;
+            }
+        }
+    }
+    return ret;
+
+}
+
 function populateQuestionWindow(rcqa, question_detail, is_refresh) {
+
+    var hist_items = mergeUnconfirmed(question_detail['history_unconfirmed'], question_detail['history'], question_detail[Qi_bond]);
+    console.log('made hist_items', hist_items);
 
     //console.log('populateQuestionWindow with detail ', question_detail);
     var question_id = question_detail[Qi_question_id];
     var question_json = question_detail[Qi_question_json];
     var question_type = question_json['type'];
 
-    //console.log('current list last item in history, which is ', question_detail['history'])
+    //console.log('history, which is ', question_detail['history'])
     var idx = question_detail['history'].length - 1;
 
     let date = new Date();
@@ -2093,6 +2127,11 @@ function populateQuestionWindow(rcqa, question_detail, is_refresh) {
         slicePoint: 200
     });
     rcqa.find('.reward-value').text(web3js.fromWei(question_detail[Qi_bounty], 'ether'));
+
+    rcqa.find('a.share-question-link').attr('href', '#!/question/' + question_id);
+
+    var pot_ttl = new BigNumber(0);
+    pot_ttl = pot_ttl.add(question_detail[Qi_bounty]);
 
     if (question_detail[Qi_block_mined] > 0) {
         rcqa.removeClass('unconfirmed-transaction').removeClass('has-warnings');
@@ -2152,20 +2191,46 @@ function populateQuestionWindow(rcqa, question_detail, is_refresh) {
             }
 
             // TODO: Do duplicate checks and ensure order in case stuff comes in weird
-            for (var i = 0; i < idx; i++) {
-                var ans = question_detail['history'][i].args;
+            for (var i = 0; i < hist_items.length; i++) {
+                var ans = hist_items[i].args;
                 var hist_id = 'question-window-history-item-' + web3js.sha3(question_id + ans.answer + ans.bond.toString());
+
+                var hist_item;
+                var hist_tmpl;
+                var already_exists = false;
                 if (rcqa.find('#' + hist_id).length) {
-                    //console.log('already in list, skipping', hist_id, ans);
+                    already_exists = true;
+                    hist_item = rcqa.find('#' + hist_id);
+                } else {
+                    //console.log('not already in list, adding', hist_id, ans);
+                    var hist_tmpl = rcqa.find('.answer-item.answered-history-item.template-item');
+                    hist_item = hist_tmpl.clone();
+                    hist_item.attr('id', hist_id);
+                }
+
+                if (ans.is_unconfirmed) {
+                    console.log('adding unconfirmed class', ans);
+                    hist_item.addClass('unconfirmed-answer');
+                } else {
+                    console.log('removing unconfirmed class', ans);
+                    hist_item.removeClass('unconfirmed-answer');
+                    pot_ttl = pot_ttl.add(ans.bond);
+                }
+
+                if (ans.is_current) {
+                    hist_item.addClass('current-answer');
+                } else {
+                    hist_item.removeClass('current-answer');
+                }
+
+                if (already_exists) {
+                    console.log('already in list, skipping anything that should not change', hist_id, ans);
                     continue;
                 }
-                //console.log('not already in list, adding', hist_id, ans);
-                var hist_tmpl = rcqa.find('.answer-item.answered-history-item.template-item');
-                var hist_item = hist_tmpl.clone();
-                hist_item.attr('id', hist_id);
                 hist_item.find('.answerer').text(ans['user']);
 
                 var avjazzicon = jazzicon(20, parseInt(ans['user'].toLowerCase().slice(2, 10), 16));
+                hist_item.attr('data-account', ans['user']);
 
                 hist_item.find('.answer-data__avatar').html(avjazzicon);
 
@@ -2183,16 +2248,23 @@ console.log(ans);
                     hist_item.find('.current-answer').text(rc_question.getAnswerString(question_json, ans.answer));
                     hist_item.removeClass('unrevealed-commit');
                 }
+                
 
                 hist_item.find('.answer-bond-value').text(web3js.fromWei(ans.bond.toNumber(), 'ether'));
                 hist_item.find('.answer-time.timeago').attr('datetime', rc_question.convertTsToString(ans['ts']));
                 timeAgo.render(hist_item.find('.answer-time.timeago'));
+                hist_item = setMyAccountToggle(hist_item);
                 hist_item.removeClass('template-item');
                 hist_tmpl.after(hist_item);
+                console.log('adding bond', ans.bond.toNumber() );
+                
             }
 
         }
     }
+
+    rcqa.find('.question-current-answer-reward-body').text(web3js.fromWei(pot_ttl));
+    console.log('setting ttl ', pot_ttl.toNumber());
 
     rcqa.find('.bond-value').text(web3js.fromWei(question_detail[Qi_bond], 'ether'));
     // Set the dispute value on a slight delay
@@ -2232,6 +2304,7 @@ console.log(ans);
     balloon.find('.setting-info-questioner').text(questioner);
     balloon.css('z-index', ++zindex);
 
+    /*
     var unconfirmed_container = rcqa.find('.unconfirmed-answer-container');
     if (question_detail['history_unconfirmed'].length) {
 
@@ -2269,6 +2342,7 @@ console.log(ans);
         rcqa.removeClass('has-unconfirmed-answer');
 
     }
+    */
 
     // Arbitrator
     if (!isArbitrationPending(question_detail) && !isFinalized(question_detail)) {
@@ -2950,7 +3024,7 @@ function updateQuestionState(question, question_window) {
 
     // The first item is the current answer
     // However we don't show it as current answer if it's unrevealed
-    if (question['history'].length > 1 || (question['history'].length  == 1 && hasUnrevealedCommits(question) ) ) {
+    if (question['history'].length > 0) {
         question_window.addClass('has-history');
     } else {
         question_window.removeClass('has-history');
@@ -4092,6 +4166,7 @@ function accountInit(account) {
     }, START_BLOCK, 'latest');
 
     updateUserBalanceDisplay();
+    refreshMyAccountToggles();
 
 }
 
@@ -4184,3 +4259,21 @@ $('.continue-read-only-message').click(function(e) {
     e.stopPropagation();
     $('body').removeClass('error-no-metamask-plugin').removeClass('error');
 });
+
+// Set the my-answer class
+// Called on history items etc individually when they're added to the document
+// Called on the whole document if the account changes
+function setMyAccountToggle(el) {
+    if (account && (account.toLowerCase() == el.attr('data-account'))) {
+        el.addClass('my-account');
+    } else {
+        el.removeClass('my-account');
+    }
+    return el;
+}
+
+function refreshMyAccountToggles() {
+    $('.my-account-toggle').each(function() {
+        setMyAccountToggle($(this));
+    });
+}

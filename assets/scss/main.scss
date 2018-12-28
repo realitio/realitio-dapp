@@ -1358,7 +1358,7 @@ span.rcbrowser__close-button {
     color: $white !important;
 }
 
-.share-question-link a {
+a.share-question-link {
     color: $blue;
 }
 
@@ -1622,7 +1622,7 @@ div.unconfirmed-question-header span.pending-question-txid {
     opacity: 1;
 }
 
-.current-answer-body.my-answer:before {
+.answered-history-item.my-account .current-answer-body:before {
     content: "";
     border-radius: 50%;
     background-color: $blue;
@@ -1689,6 +1689,22 @@ span.unconfirmed-answer-label {
 span.current-answer-label,
 span.unconfirmed-answer-label {
     font-weight: bold;
+}
+
+span.unconfirmed-answer-label {
+    display:none;
+}
+
+.unconfirmed-answer span.unconfirmed-answer-label {
+    display: inline!important;
+}
+
+span.current-answer-label {
+    display:none;
+}
+
+.current-answer span.current-answer-label {
+    display: inline !important;
 }
 
 .answer-data-inner {
