@@ -756,29 +756,7 @@ select.rcbrowser-select.form-item.question-order {
 }
 
 span.question-title {
-    overflow: hidden;
-    position: relative;
     line-height: 1.2em;
-    max-height: 2.4em;
-    margin-right: 0em;
-    display: block;
-}
-
-span.question-title:before {
-  content: '...';
-  position: absolute;
-  right: 0;
-  bottom: 0;
-}
-
-span.question-title:after {
-  content: '';
-  position: absolute;
-  right: 0;
-  width: 1em;
-  height: 1em;
-  margin-top: 0.2em;
-  background: white;
 }
 
 .questions__item-inner {
@@ -786,7 +764,13 @@ span.question-title:after {
     position: relative;
 }
 
+.questions__item__question {
+    float: left;
+    width: 67%;
+}
+
 .rcbrowser-main-header-title.question-title,
+.question-current-answer,
 a.questions__item__title {
     display: block;
     text-decoration: none;
@@ -797,9 +781,10 @@ a.questions__item__title {
     font-weight: normal;
     color: $gray;
     margin-top: 0;
+    margin-right: 20px;
 }
 .rcbrowser-main-header-title.question-title {
-    margin: 10px 0;   
+    margin: 10px 0;
 }
 a.questions__item__title:hover {
     color: $blue;
@@ -809,12 +794,18 @@ a.questions__item__title:hover {
 .questions__item__answer {
     float: right;
     width: 32%;
-    margin-top: -65px;
+    margin-top: 0;
     font-family: $font-family-serif;
     color: $gray;
     margin-bottom: 9px;
     line-height: 1.4;
-    font-size: 1.4em;
+    font-size: 0.8em;
+}
+
+.questions__item__answer span.answer-body {
+    font-size: 1.9em;
+    display: block;
+    margin-bottom: 9px;
 }
 
 .questions__answer__footer {
@@ -825,14 +816,15 @@ a.questions__item__title:hover {
 .questions__answer__footer a {
     color: $blue;
     text-decoration: none;
+    float: left;
+    margin-right: 20px;
 }
 
 .questions__item.has-answer a.questions__item__title {
-    margin-right: 38%;
-    min-height: 2.4em;
+
 }
 
-.questions__item__footer {
+.questions__item__footer, .questions__answer__footer {
     font-size: 13px;
     color: $light-gray;
 }
@@ -1490,13 +1482,13 @@ span.rcbrowser__close-button {
     display: none;
 }
 
-.questions__item__answer span.unconfirmed-answer {
-    display: none;
+.total-reward {
+    display: inline;
+    margin-left: 10px;
 }
 
-.questions__item__answer span.total-label::before {
-    display: block;
-    content: "";
+.questions__item__answer span.unconfirmed-answer {
+    display: none;
 }
 
 div.rcbrowser--qa-detail.unconfirmed-transaction .unconfirmed-question-header {

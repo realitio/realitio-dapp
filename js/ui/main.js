@@ -1718,13 +1718,10 @@ function populateSectionEntry(entry, question_data) {
     
     // For these purposes we just ignore any outstanding commits
     if (isAnswered(question_data)) {
-
-        entry.find('.questions__item__answer span.answer-body').css('opacity',1);
         entry.find('.questions__item__answer span.answer-body').text(rc_question.getAnswerString(question_json, best_answer));
         //entry.addClass('has-answer');
     } else {
-        entry.find('.questions__item__answer span.answer-body').text('None');
-        entry.find('.questions__item__answer span.answer-body').css('opacity',0.2);
+        entry.find('.questions__item__answer span.answer-body').text('-');
         //entry.removeClass('has-answer');
     }
 
