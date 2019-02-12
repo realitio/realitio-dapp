@@ -783,16 +783,12 @@ a.questions__item__title {
     margin-top: 0;
 }
 .question-current-answer {
-    margin: 10px 0 10px 20px;
-}
-.rcbrowser-question-current-answer .rcbrowser-main-header-subtitle {
-    margin-left: 20px;
+  margin-top: 10px;
 }
 .rcbrowser-question {
     margin: 10px 0;
     width: 60%;
     float: left;
-    margin-right: 20px;
 }
 a.questions__item__title:hover {
     color: $blue;
@@ -818,7 +814,7 @@ span.question-current-answer-reward-label:before {
 }
 
 .questions__item__answer span.answer-body {
-    font-size: 1.9em;
+    font-size: 1.7em;
     display: block;
     margin-bottom: 9px;
 }
@@ -1316,20 +1312,21 @@ span.rcbrowser__close-button {
 .rcbrowser-main-header-subtitle {
     font-size: 13px;
     font-weight: 400;
-    color: $rcBrowserSubText;
-    margin: 15px 0 0;
+    color: $gray;
 }
 
 .answer-claiming-container {
     float:right;
     font-size: 13px;
     font-weight: 400;
-    color: $rcBrowserSubText;
+    color: $gray;
     display:none;
 }
 
+.rcbrowser-main-header-subtitle, 
 .rcbrowser-main-header-subtitle > span {
-    color: $rcBrowserSubText;
+    color: $gray;
+    font-family: $font-family-sans;
 }
 
 .answer-deadline-container {
@@ -1352,20 +1349,16 @@ span.rcbrowser__close-button {
 }
 
 .rcbrowser-main-header-date {
-    color: $rcBrowserSubText;
+    color: $gray;
     font-size: 12px;
     float: left;
-    margin-right: 20px;
+    margin-right: 10px;
 }
 
 .rcbrowser--qa-detail .rcbrowser-main-header-subtitle {
     font-size: 12px;
     font-weight: 400;
     color: $gray;
-}
-
-.rcbrowser--qa-detail .rcbrowser-main-header-subtitle > span {
-    margin: 0 9px 0 0;
 }
 
 .add-reward-button {
@@ -1516,6 +1509,13 @@ span.rcbrowser__close-button {
 .total-reward {
     display: inline;
     margin-left: 10px;
+}
+
+span.question-final-answer-label,
+span.question-current-answer-label,
+span.question-final-answer-label,
+.rcbrowser-main-header-subtitle span.total-reward {
+    float: left;
 }
 
 .questions__item__answer span.unconfirmed-answer {
@@ -1672,8 +1672,9 @@ div.unconfirmed-question-header span.pending-question-txid {
     position: relative;
     background-color: $rcBrowserDarkBg;
     margin: 0;
-    padding: 10px;
+    padding: 20px 10px 10px;
     border-radius: 3px;
+    border-top: 1px solid $border-main;
 }
 
 .current-answer-body .balloon .answer-data__item {
@@ -1702,18 +1703,16 @@ div.unconfirmed-question-header span.pending-question-txid {
     display: none;
 }
 
-.answer-time.timeago,
-span.current-answer-label,
-span.unconfirmed-answer-label {
-    color: $rcBrowserSubText;
+.answered-history-footer span {
+    color: $gray;
     font-size: 12px;
     font-family: "Roboto", sans-serif;
-    margin-left: 20px;
+    margin-right: 10px;
 }
 
-span.current-answer-label,
-span.unconfirmed-answer-label {
-    font-weight: bold;
+.answered-history-footer span.answer-bond-label, 
+.answered-history-footer span.answer-bond-value {
+  margin-right: 0;
 }
 
 .answer-data-inner {
@@ -1731,7 +1730,7 @@ span.unconfirmed-answer-label {
     height: 24px;
     border-radius: 50%;
     float: left;
-    margin: 0 12px 6px 0;
+    margin: 10px 12px 6px 0;
 }
 
 .answer-data__avatar:hover + .balloon {
@@ -1767,7 +1766,7 @@ span.unconfirmed-answer-label {
 .answer-form-container {
     background-color: $rcBrowserDarkBg;
     margin: 0 0 25px;
-    padding: 0 15px 25px;
+    padding: 0 0 25px;
     border-radius: 3px;
     border-bottom: 1px solid $border-main;
 }
@@ -1998,7 +1997,22 @@ textarea[name="question-body"]:placeholder-shown{
     right: 30px;
 }
 
-div.invalid-switch-container { margin-top:2px; margin-right:2px; text-align:right; padding-bottom: 10px;}
+div.invalid-switch-container {
+  margin-top: 20px;
+  margin-right: 2px;
+  text-align: left;
+  padding-bottom: 10px;
+}
+
+label.input-entry {
+  border: 1px solid #ddd;
+  margin: 0 0 5px;
+  padding: 12px;
+}
+
+input[type=checkbox] {
+  border: 1px solid #ccc;
+}
 
 .input-container a.valid-text-link { font-size:12px; }
 .input-container a.invalid-text-link { font-size:12px; }
@@ -2563,14 +2577,14 @@ div.rcbrowser--qa-detail.question-state-open.has-answer .answer-deadline-contain
 }
 div.rcbrowser--qa-detail.question-state-open.has-answer.all-entries-unrevealed .answer-deadline-container{display:none !important;}
 
-.apply-for-arbitration-container { display: none}
+.apply-for-arbitration-container { display: none; clear: both; line-height: 1.9;}
 div.rcbrowser--qa-detail.question-state-open .apply-for-arbitration-container { display: block !important}
 
-.pending-arbitration-container { display:none }
+.pending-arbitration-container { display:none; clear: both; line-height: 1.9;}
 div.rcbrowser--qa-detail.question-state-pending-arbitration .pending-arbitration-container { display: block !important}
 
 .reward-value-container { display:none}
-div.rcbrowser--qa-detail.question-state-open .reward-value-container { display:block !important; float: left;}
+div.rcbrowser--qa-detail.question-state-open .reward-value-container { display:block !important; float: left; margin-right: 10px; }
 
 .add-reward-button { display:none}
 div.rcbrowser--qa-detail.question-state-open .add-reward-button { display:inline-block !important}

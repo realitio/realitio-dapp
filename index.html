@@ -626,7 +626,7 @@
         </div>
     </div>
 
-    <div class="answer-form-container multiple-select template-item" style="display:none;">
+    <div class="answer-form-container multiple-select template-item clearfix" style="display:none;">
         <div class="answer-form-header">
             <span class="answer-prompt-text no-answer-only">Do you know the answer to this question?</span>
             <span class="answer-prompt-text has-answer-only">Do you want to correct this answer?</span>
@@ -659,7 +659,7 @@
             <span class="rcbrowser-form-footer">&nbsp;</a></span>
         </form>
     </div>
-    <div class="answer-form-container single-select template-item" style="display:none;">
+    <div class="answer-form-container single-select template-item clearfix" style="display:none;">
         <div class="answer-form-header">
             <span class="answer-prompt-text no-answer-only">Do you know the answer to this question?</span>
             <span class="answer-prompt-text has-answer-only">Do you want to correct this answer?</span>
@@ -692,7 +692,7 @@
             <span class="rcbrowser-form-footer">&nbsp;</a></span>
         </form>
     </div >
-    <div class="answer-form-container uint template-item" style="display:none">
+    <div class="answer-form-container uint template-item clearfix" style="display:none">
         <div class="answer-form-header">
             <span class="answer-prompt-text no-answer-only">Do you know the answer to this question?</span>
             <span class="answer-prompt-text has-answer-only">Do you want to correct this answer?</span>
@@ -725,7 +725,7 @@
             <span class="rcbrowser-form-footer">&nbsp;</a></span>
         </form>
     </div>
-    <div class="answer-form-container int template-item" style="display:none">
+    <div class="answer-form-container int template-item clearfix" style="display:none">
         <div class="answer-form-header">
             <span class="answer-prompt-text no-answer-only">Do you know the answer to this question?</span>
             <span class="answer-prompt-text has-answer-only">Do you want to correct this answer?</span>
@@ -758,7 +758,7 @@
             <span class="rcbrowser-form-footer">&nbsp;</a></span>
         </form>
     </div>
-    <div class="clearfix answer-form-container bool template-item" style="display:none">
+    <div class="clearfix answer-form-container bool template-item clearfix" style="display:none">
         <div class="answer-form-header">
             <span class="answer-prompt-text no-answer-only">Do you know the answer to this question?</span>
             <span class="answer-prompt-text has-answer-only">Do you want to correct this answer?</span>
@@ -793,7 +793,7 @@
             <span class="rcbrowser-form-footer">&nbsp;</a></span>
         </form>
     </div>
-    <div class="answer-form-container freetext template-item" style="display:none">
+    <div class="answer-form-container freetext template-item clearfix" style="display:none">
         <div class="answer-form-header">
             <span class="answer-prompt-text no-answer-only">Do you know the answer to this question?</span>
             <span class="answer-prompt-text has-answer-only">Do you want to correct this answer?</span>
@@ -823,7 +823,7 @@
             <span class="rcbrowser-form-footer">&nbsp;</a></span>
         </form>
     </div>
-    <div class="answer-form-container datetime template-item" style="display:none">
+    <div class="answer-form-container datetime template-item clearfix" style="display:none">
         <div class="answer-form-header">
             <span class="answer-prompt-text no-answer-only">Do you know the answer to this question?</span>
             <span class="answer-prompt-text has-answer-only">Do you want to correct this answer?</span>
@@ -855,7 +855,7 @@
             <span class="rcbrowser-form-footer">&nbsp;</a></span>
         </form>
     </div>
-    <div class="answer-form-container before-opening template-item" style="display:none">
+    <div class="answer-form-container before-opening template-item clearfix" style="display:none">
         <div class="answer-form-header">
             This question is not yet open for answers.
         </div>
@@ -914,14 +914,18 @@
                     
                     <div class="rcbrowser-question-current-answer">
                         <h2 class="question-current-answer">
-                            <span class="question-unconfirmed-answer-label" style="display: none;">Unconfirmed Answer:</span>
-                            <span class="question-current-answer-label">Current Answer:</span>
-                            <span class="question-final-answer-label" style="display: none;">Final Answer:</span>
                             <span class="question-current-answer-body"></span>
-                            <span class="question-current-answer-reward-label">Total: </span>
-                            <span class="question-current-answer-reward-body"></span>ETH</h2>
-
+                        </h2>
                         <div class="rcbrowser-main-header-subtitle">
+
+                            <span class="question-unconfirmed-answer-label" style="display: none;">Unconfirmed Answer </span>
+                            <span class="question-current-answer-label">Current Answer </span>
+                            <span class="question-final-answer-label" style="display: none;">Final Answer </span>
+                            <span class="total-reward">
+                              <span class="question-current-answer-reward-label">Total: </span>
+                              <span class="question-current-answer-reward-body"></span>ETH
+                            </span>
+                            
                             <div class="clearfix apply-for-arbitration-container">
                                 <a href="" class="arbitration-button">Apply for arbitration... (<span class="arbitration-fee"></span> ETH)</a>
                             </div>
@@ -1066,13 +1070,14 @@
                                         <span>User ID: </span><span class="answerer"></span>
                                     </div>
                                 </div>
-                                <p>
-                                    <span class="current-answer"></span> | Bond Added: 
+                                <span class="current-answer"></span>
+                                <div class="answered-history-footer">
+                                    <span class="current-answer-label">Current Answer</span>
+                                    <span class="unconfirmed-answer-label">Unconfirmed Answer</span>
+                                    <span class="answer-bond-label">Bond Added: </span>
                                     <span class="answer-bond-value"></span> <span>ETH</span> 
                                     <span class="timeago-container"><time class="answer-time timeago" datetime=""></time></span>
-                                    <span class="current-answer-label">(Current Answer)</span>
-                                    <span class="unconfirmed-answer-label">(Unconfirmed Answer)</span>
-                                </p>
+                                </div>
                             </div>
                             <div class="answer-data">
                                 <div class="answer-data-inner">
