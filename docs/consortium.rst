@@ -140,26 +140,26 @@ Any address can call the following:
 .. code-block:: bash
 
    # (The first step is only needed if there are question fees)
-   node call_withdraw.js <node> <gas_price> 
+   node call_withdraw.js <nonce> <gas_price> 
 
    # Move funds from the arbitrator contract to the splitter wallet
-   node withdraw_to_registered_wallet.js <node> <gas_price> 
+   node withdraw_to_registered_wallet.js <nonce> <gas_price> 
 
    # Allocates funds in the splitter contract to each party's address
-   node allocate_splitter_funds.js <node> <gas_price> 
+   node allocate_splitter_funds.js <nonce> <gas_price> 
 
 You can then extract your own split funds with:
 
 .. code-block:: bash
 
-   node withdraw_from_splitter_wallet.js <node> <gas_price>
+   node withdraw_from_splitter_wallet.js <nonce> <gas_price>
 
 
 You can send the funds received on with:
 
 .. code-block:: bash
 
-   node send_value.js <node> <gas_price> <address> <amount_in_gwei>
+   node send_value.js <nonce> <gas_price> <address> <amount_in_gwei>
 
 
 Setting dispute fees
@@ -190,10 +190,13 @@ Setting question fees (anti-spam)
 Performing arbitration
 ~~~~~~~~~~~~~~~~~~~~~~
 
-  We prepare a json file at `requests/arbitration.json`. Each entry contains:
+  We prepare a json file at `requests/arbitration.json`.  There is an example showing the format of this file at `requests/arbitration.example.json`. 
+  
+  Each entry contains:
+
   * The question ID
   * The right answer
-  * The account that should be credited with that answer: If the final answer was right, this should be that answer. If not it should be the user that paid for arbitration.
+  * The account that should be credited with that answer: If the final answer was right, this should be the account that gave that answer. If not it should be the account that paid for arbitration.
 
   You can then create a transaction for an item at a particular index in that list with:
 
