@@ -1362,19 +1362,17 @@ span.rcbrowser__close-button {
 }
 
 .add-reward-button {
-    background-color: $blue;
-    border-radius: 50%;
-    font-size: 13px;
-    padding: 2px 5px 2px;
-    cursor: pointer;
-    font-weight: bold;
-    line-height: 1;
-    margin-top: -2px !important;
-    color: $white !important;
+    color: $blue;
+    margin-right: 10px;
 }
 
 .share-question-link a {
     color: $blue;
+}
+
+.question-detail-footer {
+    clear: both;
+    line-height: 1.9;
 }
 
 .add-reward-container {
