@@ -2099,7 +2099,11 @@ function populateQuestionWindow(rcqa, question_detail, is_refresh) {
             // label for show the current answer.
             var label = rc_question.getAnswerString(question_json, question_detail[Qi_best_answer]);
             current_container.find('.question-current-answer-body').text(label);
+        } else {
+            current_container.find('.question-current-answer-body').text('-');
+            //entry.removeClass('has-answer');
         }
+        
 
         bond = question_detail[Qi_bond];
 

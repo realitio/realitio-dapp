@@ -782,6 +782,12 @@ a.questions__item__title {
     color: $gray;
     margin-top: 0;
 }
+a.questions__item__title {
+    padding-right: 40px;
+}
+.rcbrowser-main-header-title.question-title {
+    padding-right: 20px;
+}
 .question-current-answer {
   margin-top: 10px;
 }
@@ -814,7 +820,7 @@ span.question-current-answer-reward-label:before {
 }
 
 .questions__item__answer span.answer-body {
-    font-size: 1.7em;
+    font-size: 1.75em;
     display: block;
     margin-bottom: 9px;
 }
