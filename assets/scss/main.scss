@@ -518,17 +518,17 @@ body.pushing .page-qa #push-icon {
 // Questions
 #questions-container {
     max-width: 1000px;
-    padding: 40px;
+    padding: 50px;
     box-shadow: 1px 1px 10px rgba(0,0,0,.2);
-    margin: 20px auto 80px;
+    margin: 0 auto 80px;
     background-color: #fff;
 }
 
 .nav-bar {
     background-color: $blue;
-    margin-left: -40px;
-    margin-right: -40px;
-    margin-top: -60px;
+    margin-left: -50px;
+    margin-right: -50px;
+    margin-top: -50px;
     margin-bottom: 40px;
 }
 
@@ -539,14 +539,16 @@ body.pushing .page-qa #push-icon {
 
 #filter-list li a {
     color: $blue;
-    font-size: 15px;
+    font-size: 13px;
 }
 
 .category-list {
-    margin-top: -20px;
+    margin-top: -15px;
     margin-bottom: 0;
     border-bottom: solid 1px darken($ultralight-gray, 10%);
     padding: 0 0 20px;
+    margin-left: -20px;
+    margin-right: -20px;
 }
 
 #filter-list li a.selected {
@@ -575,8 +577,50 @@ ul.main-nav {
 .nav-bar li {
     display: inline-block;
     list-style-type: none;
-    width: 24%;
+    width: 32%;
     text-align: center;
+}
+
+.select-container.select-container--question-order {
+    float: right;
+    margin-top: -23px;
+    margin-right: -20px;
+    width: 27%;
+}
+
+span.question-order-label {
+    float: left;
+    display: block;
+    font-size: 13px;
+    margin-top: 11px;
+    color: $gray;
+}
+
+select.rcbrowser-select.form-item.question-order {
+    float: right;
+    width: calc(100% - 54px);
+    height: 35px;
+    line-height: 35px;
+    color: $gray;
+}
+
+.select-container--question-order.select-container::after {
+    display: block;
+    content: "";
+    position: absolute;
+    top: -2px;
+    right: 0;
+    width: 36px;
+    height: 36px;
+    margin-top: 0;
+    margin-right: 0;
+    background-size: 60%;
+    background-image: url(../image/icon-triangle.svg);
+    pointer-events: none;
+    transform: scale(-1, -1);
+    border-right: 1px solid #eee;
+    background-repeat: no-repeat;
+    background-position: center 6px;
 }
 
 .questions {
@@ -728,35 +772,17 @@ ul.main-nav {
 }
 
 span.question-title {
-    overflow: hidden;
-    position: relative;
     line-height: 1.2em;
-    max-height: 2.4em;
-    margin-right: 0em;
-    padding-right: 1em;
-    display: block;
-}
-
-span.question-title:before {
-  content: '...';
-  position: absolute;
-  right: 0;
-  bottom: 0;
-}
-
-span.question-title:after {
-  content: '';
-  position: absolute;
-  right: 0;
-  width: 1em;
-  height: 1em;
-  margin-top: 0.2em;
-  background: white;
 }
 
 .questions__item-inner {
     padding: 0 27px 0 0;
     position: relative;
+}
+
+.questions__item__question {
+    float: left;
+    width: 67%;
 }
 
 .rcbrowser-main-header-title.question-title,
@@ -772,11 +798,14 @@ a.questions__item__title {
     color: $gray;
     margin-top: 0;
 }
-.question-current-answer {
-    margin: 10px 0 10px 20px;
+a.questions__item__title {
+    padding-right: 40px;
 }
-.rcbrowser-question-current-answer .rcbrowser-main-header-subtitle {
-    margin-left: 20px;
+.rcbrowser-main-header-title.question-title {
+    padding-right: 20px;
+}
+.question-current-answer {
+  margin-top: 10px;
 }
 .rcbrowser-question {
     margin: 10px 0;
@@ -796,31 +825,39 @@ span.question-current-answer-reward-label:before {
     width: 40%;
 }
 .questions__item__answer {
-    background-color: $green;
-    padding: 9px;
-    border-radius: 3px;
-    position: absolute;
-    top: 66px;
-    right: 20px;
-    overflow: hidden;
-    color: $white;
     float: right;
-    width: 230px;
-    margin-top: -52px;
-    text-align: center;
-    height: 68px;
-    line-height: 68px;
+    width: 32%;
+    margin-top: 0;
     font-family: $font-family-serif;
-    font-weight: bold;
-    font-size: 1em;
+    color: $gray;
+    margin-bottom: 9px;
+    line-height: 1.4;
+    font-size: 0.8em;
+}
+
+.questions__item__answer span.answer-body {
+    font-size: 1.75em;
+    display: block;
+    margin-bottom: 9px;
+}
+
+.questions__answer__footer {
+    font-family: $font-family-sans;
+    font-size: 13px;
+}
+
+.questions__answer__footer a {
+    color: $blue;
+    text-decoration: none;
+    float: left;
+    margin-right: 20px;
 }
 
 .questions__item.has-answer a.questions__item__title {
-    margin-right: 260px;
-    height:2.4em;
+
 }
 
-.questions__item__footer {
+.questions__item__footer, .questions__answer__footer {
     font-size: 13px;
     color: $light-gray;
 }
@@ -1297,20 +1334,21 @@ span.rcbrowser__close-button {
 .rcbrowser-main-header-subtitle {
     font-size: 13px;
     font-weight: 400;
-    color: $rcBrowserSubText;
-    margin: 15px 0 0;
+    color: $gray;
 }
 
 .answer-claiming-container {
     float:right;
     font-size: 13px;
     font-weight: 400;
-    color: $rcBrowserSubText;
+    color: $gray;
     display:none;
 }
 
+.rcbrowser-main-header-subtitle, 
 .rcbrowser-main-header-subtitle > span {
-    color: $rcBrowserSubText;
+    color: $gray;
+    font-family: $font-family-sans;
 }
 
 .answer-deadline-container {
@@ -1333,10 +1371,10 @@ span.rcbrowser__close-button {
 }
 
 .rcbrowser-main-header-date {
-    color: $rcBrowserSubText;
+    color: $gray;
     font-size: 12px;
     float: left;
-    margin-right: 20px;
+    margin-right: 10px;
 }
 
 .rcbrowser--qa-detail .rcbrowser-main-header-subtitle {
@@ -1345,24 +1383,18 @@ span.rcbrowser__close-button {
     color: $gray;
 }
 
-.rcbrowser--qa-detail .rcbrowser-main-header-subtitle > span {
-    margin: 0 9px 0 0;
-}
-
 .add-reward-button {
-    background-color: $blue;
-    border-radius: 50%;
-    font-size: 13px;
-    padding: 2px 5px 2px;
-    cursor: pointer;
-    font-weight: bold;
-    line-height: 1;
-    margin-top: -2px !important;
-    color: $white !important;
+    color: $blue;
+    margin-right: 10px;
 }
 
 a.share-question-link {
     color: $blue;
+}
+
+.question-detail-footer {
+    clear: both;
+    line-height: 1.9;
 }
 
 .add-reward-container {
@@ -1491,12 +1523,26 @@ a.share-question-link {
     overflow: hidden;
 }
 
-
-
 // unconfirmed answer
 .unconfirmed-answer-container {
     margin: 15px 0;
     opacity: 0.5;
+    display: none;
+}
+
+.total-reward {
+    display: inline;
+    margin-left: 10px;
+}
+
+span.question-final-answer-label,
+span.question-current-answer-label,
+span.question-final-answer-label,
+.rcbrowser-main-header-subtitle span.total-reward {
+    float: left;
+}
+
+.questions__item__answer span.unconfirmed-answer {
     display: none;
 }
 
@@ -1650,8 +1696,9 @@ div.unconfirmed-question-header span.pending-question-txid {
     position: relative;
     background-color: $rcBrowserDarkBg;
     margin: 0;
-    padding: 10px;
+    padding: 20px 10px 10px;
     border-radius: 3px;
+    border-top: 1px solid $border-main;
 }
 
 .current-answer-body .balloon .answer-data__item {
@@ -1680,18 +1727,16 @@ div.unconfirmed-question-header span.pending-question-txid {
     display: none;
 }
 
-.answer-time.timeago,
-span.current-answer-label,
-span.unconfirmed-answer-label {
-    color: $rcBrowserSubText;
+.answered-history-footer span {
+    color: $gray;
     font-size: 12px;
     font-family: "Roboto", sans-serif;
-    margin-left: 20px;
+    margin-right: 10px;
 }
 
-span.current-answer-label,
-span.unconfirmed-answer-label {
-    font-weight: bold;
+.answered-history-footer span.answer-bond-label, 
+.answered-history-footer span.answer-bond-value {
+  margin-right: 0;
 }
 
 span.unconfirmed-answer-label {
@@ -1725,7 +1770,7 @@ span.current-answer-label {
     height: 24px;
     border-radius: 50%;
     float: left;
-    margin: 0 12px 6px 0;
+    margin: 10px 12px 6px 0;
 }
 
 .answer-data__avatar:hover + .balloon {
@@ -1761,7 +1806,7 @@ span.current-answer-label {
 .answer-form-container {
     background-color: $rcBrowserDarkBg;
     margin: 0 0 25px;
-    padding: 0 15px 25px;
+    padding: 0 0 25px;
     border-radius: 3px;
     border-bottom: 1px solid $border-main;
 }
@@ -1992,7 +2037,22 @@ textarea[name="question-body"]:placeholder-shown{
     right: 30px;
 }
 
-div.invalid-switch-container { margin-top:2px; margin-right:2px; text-align:right; padding-bottom: 10px;}
+div.invalid-switch-container {
+  margin-top: 20px;
+  margin-right: 2px;
+  text-align: left;
+  padding-bottom: 10px;
+}
+
+label.input-entry {
+  border: 1px solid #ddd;
+  margin: 0 0 5px;
+  padding: 12px;
+}
+
+input[type=checkbox] {
+  border: 1px solid #ccc;
+}
 
 .input-container a.valid-text-link { font-size:12px; }
 .input-container a.invalid-text-link { font-size:12px; }
@@ -2541,8 +2601,9 @@ div.notifications-template-container {display:none}
 option.exceptional-option {font-style: italic}
 option.invalid-select {font-style: italic}
 
-div.questions__item__footer span.question-bounty-container { float:right }
-
+div.questions__item__footer span.question-bounty-container {}
+.questions__item__footer > span { margin-right: 20px; }
+.questions__item__footer .status-unconfirmed {font-weight: bold; display: none;}
 
 .answer-form-container{display:none}
 div.rcbrowser--qa-detail.question-state-open .answer-form-container{display:block !important}
@@ -2560,14 +2621,14 @@ div.rcbrowser--qa-detail.question-state-open.has-answer .answer-deadline-contain
 }
 div.rcbrowser--qa-detail.question-state-open.has-answer.all-entries-unrevealed .answer-deadline-container{display:none !important;}
 
-.apply-for-arbitration-container { display: none}
+.apply-for-arbitration-container { display: none; clear: both; line-height: 1.9;}
 div.rcbrowser--qa-detail.question-state-open .apply-for-arbitration-container { display: block !important}
 
-.pending-arbitration-container { display:none }
+.pending-arbitration-container { display:none; clear: both; line-height: 1.9;}
 div.rcbrowser--qa-detail.question-state-pending-arbitration .pending-arbitration-container { display: block !important}
 
 .reward-value-container { display:none}
-div.rcbrowser--qa-detail.question-state-open .reward-value-container { display:block !important; float: left;}
+div.rcbrowser--qa-detail.question-state-open .reward-value-container { display:block !important; float: left; margin-right: 10px; }
 
 .add-reward-button { display:none}
 div.rcbrowser--qa-detail.question-state-open .add-reward-button { display:inline-block !important}
@@ -2730,9 +2791,8 @@ body.error-no-metamask-plugin div.error-bar div.error-label.no-metamask-plugin-i
 
 .questions__item .question-setting-warning {
     position: absolute;
-    top: -10px;
-    left: 0;
-    width: 24px;
+    top: 20px;
+    left: -23px;
 }
 
 .question-setting-info .balloon {

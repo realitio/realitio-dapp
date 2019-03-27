@@ -1724,22 +1724,24 @@ function populateSectionEntry(entry, question_data) {
         slicePoint: 140
     });
     entry.find('.question-bounty').text(bounty);
-
+    entry.addClass('has-answer');
+    
     // For these purposes we just ignore any outstanding commits
     if (isAnswered(question_data)) {
-        entry.find('.questions__item__answer').text(rc_question.getAnswerString(question_json, best_answer));
-        entry.addClass('has-answer');
+        entry.find('.questions__item__answer span.answer-body').text(rc_question.getAnswerString(question_json, best_answer));
+        //entry.addClass('has-answer');
     } else {
-        entry.find('.questions__item__answer').text('');
-        entry.removeClass('has-answer');
+        entry.find('.questions__item__answer span.answer-body').text('-');
+        //entry.removeClass('has-answer');
     }
 
     var is_answered = isAnswered(question_data);
-
+    entry.addClass('has-answers').removeClass('no-answers');
+    
     if (is_answered) {
-        entry.addClass('has-answers').removeClass('no-answers');
+        //entry.addClass('has-answers').removeClass('no-answers');
     } else {
-        entry.removeClass('has-answers').addClass('no-answers');
+        //entry.removeClass('has-answers').addClass('no-answers');
     }
 
     timeago.cancel(entry.find('.timeago'));
@@ -2146,7 +2148,11 @@ function populateQuestionWindow(rcqa, question_detail, is_refresh) {
             // label for show the current answer.
             var label = rc_question.getAnswerString(question_json, question_detail[Qi_best_answer]);
             current_container.find('.question-current-answer-body').text(label);
+        } else {
+            current_container.find('.question-current-answer-body').text('-');
+            //entry.removeClass('has-answer');
         }
+        
 
         bond = question_detail[Qi_bond];
 
