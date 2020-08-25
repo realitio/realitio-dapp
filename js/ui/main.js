@@ -49,6 +49,14 @@ var token_json;
 
 var erc20_token;
 
+var active_blocks = {
+    'earliest': 0,
+    'latest': 0,
+    'numbers': {}
+};
+
+const cached_blocks = require('./rinkeby.json');
+
 // For now we have a json file hard-coding the TOS of known arbitrators.
 // See https://github.com/realitio/realitio-dapp/issues/136 for the proper way to do it.
 const arb_tos = require('./arbitrator_tos.json');
@@ -438,9 +446,22 @@ $(document).on('click', '.rcbrowser', function() {
     $(this).find('.question-setting-info').find('.balloon').css('z-index', zindex);
 });
 
+function dumpActiveBlocks() {
+    var b = [];
+    for (var bn in active_blocks['numbers']) {
+        b.push(bn);
+    }
+    console.log({
+        'earliest': active_blocks['earliest'],
+        'latest': active_blocks['latest'],
+        'numbers': b
+    });
+}
+
 // see all notifications
 $(function() {
     $('.see-all-notifications').click(function() {
+        dumpActiveBlocks();
         $(this).closest('#your-question-answer-window').removeClass('display-top-only').addClass('display-all');
         return false;
     });
@@ -3997,6 +4018,8 @@ function pageInit(account) {
 
     });
 
+    fetchCachedBlocks();
+
     // Now the rest of the questions
     last_polled_block = current_block_number;
     fetchAndDisplayQuestions(current_block_number, 0);
@@ -4029,7 +4052,47 @@ function reflectDisplayEntryChanges() {
     } 
 }
 
+function fetchCachedBlocks() {
+
+    function fetchAndHandleBlock(bi) {
+
+        console.log('bi is', bi);
+        var blk = cached_blocks['numbers'][bi];
+        console.log('fetching cached', blk);
+        var question_posted = rc.LogNewQuestion({}, {
+            fromBlock: blk,
+            toBlock: blk
+        });
+        question_posted.get(function(error, result) {
+            if (error === null && typeof result !== 'undefined') {
+                for (var i = 0; i < result.length; i++) {
+                    if (result[i].invalid_data) {
+                        continue;
+                    }
+
+                    handlePotentialUserAction(result[i]);
+                    handleQuestionLog(result[i]);
+                }
+            } else {
+                console.log(error);
+            }
+            console.log('fetch pinpoint block', blk);
+
+            if (bi == 0) {
+                return;
+            }
+            bi--;
+            fetchAndHandleBlock(bi);
+        });
+    }
+
+    var bi = cached_blocks['numbers'].length;
+    fetchAndHandleBlock(bi);
+
+}
+
 function fetchAndDisplayQuestions(end_block, fetch_i) {
+    return;
 
     // get how many to fetch off fetch_numbers, until we run off the end then use the last num
     var fetch_num;
@@ -4073,12 +4136,22 @@ function fetchAndDisplayQuestions(end_block, fetch_i) {
                 if (result[i].invalid_data) {
                     continue;
                 }
+
+                active_blocks['numbers'][result[i].blockNumber] = true;
+
                 handlePotentialUserAction(result[i]);
                 handleQuestionLog(result[i]);
             }
         } else {
             console.log(error);
         }
+
+        if (active_blocks['earliest'] == 0 || active_blocks['earliest'] > start_block)  {
+            active_blocks['earliest'] = start_block;    
+        }        
+        if (active_blocks['latest'] < end_block)  {
+            active_blocks['latest'] = end_block;
+        }        
 
         console.log('fetch start end ', start_block, end_block, fetch_i);
         fetchAndDisplayQuestions(start_block - 1, fetch_i + 1);
