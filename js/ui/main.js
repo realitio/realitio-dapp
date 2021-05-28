@@ -45,6 +45,8 @@ const full_chain_list = require('../chains.json');
 const Web3 = require('web3');
 var web3js; // This should be the normal metamask instance
 
+var is_web3_fallback = false;
+
 var rc_json;
 var arb_json;
 var token_json;
@@ -4741,8 +4743,6 @@ window.addEventListener('load', function() {
     }
 
     initCurrency(currency);
-    
-    var is_web3_fallback = false;
 
     if (typeof web3 === 'undefined') {
         var is_web3_fallback = true;
