@@ -1,5 +1,7 @@
 // TODO: Check if there was a reason to do this instead of import //require('../../../node_modules/gsap/src/uncompressed/plugins/ScrollToPlugin.js');
 
+
+
 'use strict';
 
 const rc_question = require('@realitio/realitio-lib/formatters/question.js');
@@ -4733,6 +4735,13 @@ function displayWrongNetwork(specified, detected) {
 window.addEventListener('load', function() {
 
     var args = parseHash();
+
+    if (!args['oldsite']) {
+        window.location.host = "realityETH.github.io";
+        return;
+    }
+
+
     if (args['token'] && args['token'] != 'ETH') {
         currency = args['token'];
     }
